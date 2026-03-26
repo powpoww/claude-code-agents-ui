@@ -362,6 +362,11 @@ export type NormalizedMessageKind =
   | 'error'
   | 'status'
   | 'session_created'
+  // Chat v2 message kinds
+  | 'permission_request'
+  | 'permission_cancelled'
+  | 'interactive_prompt'
+  | 'task_notification'
 
 export interface NormalizedMessage {
   kind: NormalizedMessageKind
@@ -377,6 +382,78 @@ export interface NormalizedMessage {
   exitCode?: number
   stopReason?: string
   metadata?: Record<string, any>
+  // Chat v2 extensions
+  provider?: string
+  images?: string[]
+  toolId?: string
+  canInterrupt?: boolean
+  tokenBudget?: TokenBudget
+  requestId?: string
+  newSessionId?: string
+  summary?: string
+}
+
+// ── Chat v2 Types ──────────────────────────────────────
+
+export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+
+export interface PendingPermission {
+  id: string
+  toolName: string
+  toolInput: any
+  sessionId: string
+  receivedAt: string
+  expiresAt: string
+  message?: string
+}
+
+export interface TokenBudget {
+  maxTokens?: number
+  usedTokens?: number
+  warningThreshold?: number
+}
+
+export interface Project {
+  id: string
+  name: string
+  path: string
+  sessionsCount: number
+  lastActivity: string
+  isStarred: boolean
+}
+
+export interface DisplayChatMessage {
+  id: string
+  kind: NormalizedMessageKind
+  role?: 'user' | 'assistant'
+  content?: string
+  timestamp: string
+  toolName?: string
+  toolInput?: any
+  toolResult?: any
+  isError?: boolean
+  thinking?: string
+  images?: string[]
+  permissionRequest?: PendingPermission
+  taskProgress?: TaskProgress
+  interactivePrompt?: InteractivePrompt
+  isStreaming?: boolean
+}
+
+export interface TaskProgress {
+  id: string
+  label: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  progress?: number
+  message?: string
+}
+
+export interface InteractivePrompt {
+  id: string
+  question: string
+  options?: string[]
+  placeholder?: string
+  multiline?: boolean
 }
 
 export interface ChatSession {
@@ -410,3 +487,53 @@ export type ChatWebSocketEvent =
   | NormalizedMessage
   | { type: 'connected'; sessionId?: string }
   | { type: 'disconnected' }
+
+// ── Chat v2 WebSocket Types ──────────────────────────────────
+
+export type ChatV2WebSocketMessage =
+  | {
+      type: 'start'
+      message: string
+      sessionId?: string
+      agentSlug?: string
+      workingDir?: string
+      provider?: string
+      permissionMode?: PermissionMode
+      images?: string[]
+    }
+  | { type: 'abort'; sessionId: string }
+  | { type: 'permission_response'; permissionId: string; decision: 'allow' | 'deny'; remember?: boolean }
+  | { type: 'interactive_response'; promptId: string; value: string }
+
+export type ChatV2WebSocketEvent =
+  | NormalizedMessage
+  | { type: 'connected'; sessionId?: string }
+  | { type: 'disconnected' }
+  | { type: 'permission_expired'; permissionId: string }
+
+// ── Provider Types ──────────────────────────────────────
+
+export interface ProviderQueryOptions {
+  prompt: string
+  sessionId?: string
+  agentSlug?: string
+  agentInstructions?: string
+  workingDir?: string
+  model?: string
+  permissionMode?: PermissionMode
+  images?: string[]
+}
+
+export interface ProviderFetchOptions {
+  limit?: number
+  offset?: number
+  projectName?: string
+  projectPath?: string
+}
+
+export interface ProviderFetchResult {
+  messages: NormalizedMessage[]
+  total: number
+  hasMore: boolean
+  tokenUsage?: TokenUsage
+}

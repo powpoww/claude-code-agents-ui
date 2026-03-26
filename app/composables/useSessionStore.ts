@@ -9,7 +9,7 @@
  * Based on claudecodeui's session store pattern.
  */
 
-import type { NormalizedMessage } from '~/types'
+import type { NormalizedMessage, PendingPermission, PermissionMode } from '~/types'
 
 export type SessionStatus = 'idle' | 'loading' | 'streaming' | 'error'
 
@@ -35,6 +35,10 @@ export interface SessionSlot {
   offset: number
   /** Token usage info */
   tokenUsage: any
+  /** Chat v2: Pending permissions for this session */
+  pendingPermissions: Map<string, PendingPermission>
+  /** Chat v2: Permission mode for this session */
+  permissionMode: PermissionMode
 }
 
 const EMPTY: NormalizedMessage[] = []
@@ -57,6 +61,8 @@ function createEmptySlot(): SessionSlot {
     hasMore: false,
     offset: 0,
     tokenUsage: null,
+    pendingPermissions: new Map(),
+    permissionMode: 'default',
   }
 }
 
@@ -350,6 +356,8 @@ export function useSessionStore() {
 
     if (idx >= 0) {
       const stream = slot.realtimeMessages[idx]
+      if (!stream) return
+
       slot.realtimeMessages = [...slot.realtimeMessages]
       slot.realtimeMessages[idx] = {
         id: `text_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -390,6 +398,96 @@ export function useSessionStore() {
     return storeRef.value.get(sessionId)
   }
 
+  // ── Chat v2: Permission Management ──────────────────
+
+  /**
+   * Add a pending permission to a session
+   */
+  const addPermission = (sessionId: string, permission: PendingPermission) => {
+    const slot = getSlot(sessionId)
+    slot.pendingPermissions.set(permission.id, permission)
+    notify(sessionId)
+  }
+
+  /**
+   * Remove a pending permission from a session
+   */
+  const removePermission = (sessionId: string, permissionId: string) => {
+    const slot = storeRef.value.get(sessionId)
+    if (slot) {
+      slot.pendingPermissions.delete(permissionId)
+      notify(sessionId)
+    }
+  }
+
+  /**
+   * Get all pending permissions for a session
+   */
+  const getPendingPermissions = (sessionId: string): PendingPermission[] => {
+    const slot = storeRef.value.get(sessionId)
+    if (!slot) return []
+    return Array.from(slot.pendingPermissions.values())
+  }
+
+  /**
+   * Check if a session has any pending permissions
+   */
+  const hasPendingPermissions = (sessionId: string): boolean => {
+    const slot = storeRef.value.get(sessionId)
+    if (!slot) return false
+    return slot.pendingPermissions.size > 0
+  }
+
+  /**
+   * Set the permission mode for a session
+   */
+  const setPermissionMode = (sessionId: string, mode: PermissionMode) => {
+    const slot = getSlot(sessionId)
+    slot.permissionMode = mode
+    notify(sessionId)
+  }
+
+  /**
+   * Get the permission mode for a session
+   */
+  const getPermissionMode = (sessionId: string): PermissionMode => {
+    const slot = storeRef.value.get(sessionId)
+    return slot?.permissionMode ?? 'default'
+  }
+
+  /**
+   * Clear all permissions for a session
+   */
+  const clearPermissions = (sessionId: string) => {
+    const slot = storeRef.value.get(sessionId)
+    if (slot) {
+      slot.pendingPermissions.clear()
+      notify(sessionId)
+    }
+  }
+
+  /**
+   * Remove expired permissions for a session
+   */
+  const cleanupExpiredPermissions = (sessionId: string) => {
+    const slot = storeRef.value.get(sessionId)
+    if (!slot) return
+
+    const now = Date.now()
+    let hasChanges = false
+
+    for (const [id, permission] of slot.pendingPermissions) {
+      if (new Date(permission.expiresAt).getTime() < now) {
+        slot.pendingPermissions.delete(id)
+        hasChanges = true
+      }
+    }
+
+    if (hasChanges) {
+      notify(sessionId)
+    }
+  }
+
   return {
     getSlot,
     has,
@@ -406,6 +504,15 @@ export function useSessionStore() {
     clearRealtime,
     getMessages,
     getSessionSlot,
+    // Chat v2: Permission management
+    addPermission,
+    removePermission,
+    getPendingPermissions,
+    hasPendingPermissions,
+    setPermissionMode,
+    getPermissionMode,
+    clearPermissions,
+    cleanupExpiredPermissions,
   }
 }
 

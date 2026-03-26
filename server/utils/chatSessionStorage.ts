@@ -266,3 +266,34 @@ export async function deleteChatSession(sessionId: string): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Get session messages (alias for provider compatibility)
+ */
+export async function getSessionMessages(
+  sessionId: string,
+  options: { limit?: number; offset?: number } = {}
+): Promise<NormalizedMessage[]> {
+  const result = await loadSessionMessages(sessionId, options)
+  return result.messages
+}
+
+/**
+ * Get total message count for a session
+ */
+export async function getSessionMessagesCount(sessionId: string): Promise<number> {
+  const filePath = getSessionFilePath(sessionId)
+
+  if (!existsSync(filePath)) {
+    return 0
+  }
+
+  try {
+    const content = await fs.readFile(filePath, 'utf-8')
+    const lines = content.trim().split('\n').filter(Boolean)
+    return lines.length
+  } catch (error) {
+    console.error(`Failed to count messages for session ${sessionId}:`, error)
+    return 0
+  }
+}

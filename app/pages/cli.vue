@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import '@xterm/xterm/css/xterm.css'
 import type { Agent } from '~/types'
 
 const route = useRoute()
@@ -21,9 +20,8 @@ const {
   setWorkingDirectory,
 } = useCliExecution()
 
-// CLI Mode: 'terminal' | 'chat'
-// Default to terminal for /cli base route, chat sessions use /cli/[sessionId]
-const cliMode = ref<'terminal' | 'chat'>('terminal')
+// CLI Mode: 'chatv2' only (Terminal and Chat v1 disabled)
+const cliMode = ref<'chatv2'>('chatv2')
 
 const showAgentSelector = ref(false)
 
@@ -70,30 +68,10 @@ useHead({
     <!-- Top bar -->
     <div class="shrink-0 flex items-center justify-between px-6 py-3 border-b" style="border-color: var(--border-subtle);">
       <div class="flex items-center gap-3">
-        <!-- Mode Tabs -->
-        <div class="flex items-center rounded-lg p-1" style="background: var(--surface-raised);">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all"
-            :style="{
-              background: cliMode === 'terminal' ? 'var(--accent)' : 'transparent',
-              color: cliMode === 'terminal' ? 'white' : 'var(--text-secondary)',
-            }"
-            @click="cliMode = 'terminal'"
-          >
-            <UIcon name="i-lucide-terminal" class="size-3.5" />
-            Terminal
-          </button>
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all"
-            :style="{
-              background: cliMode === 'chat' ? 'var(--accent)' : 'transparent',
-              color: cliMode === 'chat' ? 'white' : 'var(--text-secondary)',
-            }"
-            @click="cliMode = 'chat'"
-          >
-            <UIcon name="i-lucide-message-circle" class="size-3.5" />
-            Chat
-          </button>
+        <!-- Mode Badge (Chat v2 only) -->
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium" style="background: var(--accent); color: white;">
+          <UIcon name="i-lucide-sparkles" class="size-3.5" />
+          Chat v2
         </div>
 
         <!-- Mode Badge -->
@@ -184,21 +162,10 @@ useHead({
 
     <!-- Main content area -->
     <div class="flex-1 flex min-h-0 relative">
-      <!-- Terminal Mode -->
-      <template v-if="cliMode === 'terminal'">
-        <!-- Terminal (full width when sidebar hidden) -->
-        <div class="flex-1 flex flex-col">
-          <Terminal :execution-options="executionOptions" :can-execute="canExecute" />
-        </div>
-      </template>
-
-      <!-- Chat Mode -->
-      <template v-else-if="cliMode === 'chat'">
-        <!-- Chat Interface (full width when sidebar hidden) -->
-        <div class="flex-1 flex flex-col">
-          <ChatInterface :execution-options="executionOptions" />
-        </div>
-      </template>
+      <!-- Chat v2 Interface -->
+      <div class="flex-1 flex flex-col">
+        <ChatV2Interface :execution-options="executionOptions" />
+      </div>
 
       <!-- Sidebar Overlay -->
       <Transition name="sidebar">
