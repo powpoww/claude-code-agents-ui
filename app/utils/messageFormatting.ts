@@ -114,6 +114,24 @@ export function escapeMarkdown(text: string): string {
 }
 
 /**
+ * Fix malformed code fences (double backticks to triple backticks).
+ * Some sources produce ``language instead of ```language
+ */
+export function fixCodeFences(text: string): string {
+  if (!text) return ''
+
+  // Fix double backticks at start of line followed by language identifier
+  // Convert ``language to ```language
+  let result = text.replace(/^``(\w+)\s*$/gm, '```$1')
+
+  // Fix standalone double backticks at start of line (closing fences)
+  // Convert `` to ``` only when it looks like a fence (standalone on line)
+  result = result.replace(/^``\s*$/gm, '```')
+
+  return result
+}
+
+/**
  * Format content for display.
  * Combines all formatting utilities in the correct order.
  */
@@ -123,10 +141,8 @@ export function formatContent(text: string): string {
   // 1. Decode HTML entities
   let result = decodeHTMLEntities(text)
 
-  // 2. Normalize inline code
-  result = normalizeInlineCode(result)
-
-  // Note: Math protection is handled separately by the markdown renderer
+  // 2. Fix malformed code fences (common issue with some markdown sources)
+  result = fixCodeFences(result)
 
   return result
 }

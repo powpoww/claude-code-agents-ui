@@ -575,32 +575,18 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   word-break: break-word;
 }
 
-.prose :deep(pre) {
-  background: var(--surface-base);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  overflow-x: auto;
-  margin: 0.5rem 0;
-  max-width: 100%;
-}
+/* ============================================
+   PROSE STYLING - Using App CSS Variables
+   Synced with main.css design system
+   ============================================ */
 
-.prose :deep(code) {
-  font-size: 0.85em;
-  background: var(--surface-raised);
-  padding: 0.15em 0.4em;
-  border-radius: 0.25rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-  word-break: break-word;
-}
-
-.prose :deep(pre code) {
-  background: none;
-  padding: 0;
-  word-break: normal;
-}
-
+/* ----------------------------------------
+   Base Text (Paragraphs)
+   ---------------------------------------- */
 .prose :deep(p) {
   margin: 0.5rem 0;
+  color: var(--text-primary);
+  line-height: 1.65;
 }
 
 .prose :deep(p:first-child) {
@@ -611,39 +597,199 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   margin-bottom: 0;
 }
 
-.prose :deep(ul), .prose :deep(ol) {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
+/* ----------------------------------------
+   Headings
+   ---------------------------------------- */
+.prose :deep(h1),
+.prose :deep(h2),
+.prose :deep(h3),
+.prose :deep(h4) {
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
-.prose :deep(li) {
-  margin: 0.25rem 0;
+.prose :deep(h1) { font-size: 1.375rem; }
+.prose :deep(h2) { font-size: 1.25rem; }
+.prose :deep(h3) { font-size: 1.125rem; }
+.prose :deep(h4) { font-size: 1rem; }
+
+/* ----------------------------------------
+   Bold/Strong Text
+   ---------------------------------------- */
+.prose :deep(strong) {
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
+.prose :deep(em) {
+  font-style: italic;
+}
+
+.prose :deep(del) {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+/* ----------------------------------------
+   Links
+   ---------------------------------------- */
 .prose :deep(a) {
   color: var(--accent);
   text-decoration: none;
 }
 
 .prose :deep(a:hover) {
+  color: var(--accent-hover);
   text-decoration: underline;
 }
 
-.prose :deep(blockquote) {
-  border-left: 3px solid var(--border-subtle);
-  padding-left: 1rem;
+/* ----------------------------------------
+   Lists
+   ---------------------------------------- */
+.prose :deep(ul) {
   margin: 0.5rem 0;
-  color: var(--text-secondary);
+  padding-left: 1.25rem;
+  list-style-type: disc;
 }
 
-.prose :deep(h1), .prose :deep(h2), .prose :deep(h3), .prose :deep(h4) {
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+.prose :deep(ol) {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  list-style-type: decimal;
+}
+
+.prose :deep(ul ul) {
+  list-style-type: circle;
+  margin: 0.25rem 0;
+}
+
+.prose :deep(ul ul ul) {
+  list-style-type: square;
+}
+
+.prose :deep(li) {
+  margin: 0.25rem 0;
+  display: list-item;
+  padding-left: 0.25rem;
+  color: var(--text-primary);
+}
+
+.prose :deep(li::marker) {
+  color: var(--text-tertiary);
+}
+
+/* ----------------------------------------
+   Tables
+   ---------------------------------------- */
+.prose :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9em;
+}
+
+.prose :deep(th),
+.prose :deep(td) {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-default);
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.prose :deep(th) {
+  background: var(--surface-hover);
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.prose :deep(h1) { font-size: 1.25rem; }
-.prose :deep(h2) { font-size: 1.125rem; }
-.prose :deep(h3) { font-size: 1rem; }
+.prose :deep(tr:nth-child(even)) {
+  background: var(--surface-hover);
+}
+
+.prose :deep(tr:nth-child(odd)) {
+  background: transparent;
+}
+
+/* ----------------------------------------
+   Inline Code
+   ---------------------------------------- */
+.prose :deep(code) {
+  font-size: 0.85em;
+  background: var(--surface-hover);
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace);
+  word-break: break-word;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ----------------------------------------
+   Code Blocks
+   Light mode: dark editor background
+   Dark mode: lighter surface background
+   ---------------------------------------- */
+.prose :deep(pre) {
+  background: #1e1e2e;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.prose :deep(pre code) {
+  background: none;
+  color: #cdd6f4;
+  padding: 0;
+  font-size: 0.875em;
+  line-height: 1.7;
+  display: block;
+  white-space: pre;
+  word-break: normal;
+  border: none;
+}
+
+/* Dark mode: lighter surface background */
+:global(.dark) .prose :deep(pre) {
+  background: #1a1a1f !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+:global(.dark) .prose :deep(pre code) {
+  color: #f0f0f5 !important;
+}
+
+/* ----------------------------------------
+   Blockquotes
+   ---------------------------------------- */
+.prose :deep(blockquote) {
+  border-left: 4px solid var(--border-default);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ----------------------------------------
+   Horizontal Rules
+   ---------------------------------------- */
+.prose :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: 1.25rem 0;
+}
+
+/* ----------------------------------------
+   Images
+   ---------------------------------------- */
+.prose :deep(img) {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
 </style>

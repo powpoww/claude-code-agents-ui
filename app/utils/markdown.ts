@@ -1,34 +1,12 @@
 import { marked } from 'marked'
 import { protectMathBlocks, restoreMathBlocks } from './messageFormatting'
 
-marked.setOptions({
+// Configure marked with GFM (GitHub Flavored Markdown) and line breaks
+marked.use({
   breaks: true,
   gfm: true,
+  async: false,
 })
-
-// Custom renderer for code blocks with language class
-const renderer = new marked.Renderer()
-const originalCodeRenderer = renderer.code.bind(renderer)
-
-renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
-  const lang = language || 'text'
-  const langClass = `language-${lang}`
-
-  // Use highlight.js class format for potential syntax highlighting
-  return `<pre><code class="${langClass}" data-language="${lang}">${
-    isEscaped ? code : escapeHtml(code)
-  }</code></pre>`
-}
-
-// Helper to escape HTML in code blocks
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
 
 /**
  * Render markdown to HTML (synchronous)
@@ -36,7 +14,7 @@ function escapeHtml(text: string): string {
  */
 export function renderMarkdown(text: string): string {
   if (!text) return ''
-  return marked.parse(text, { renderer }) as string
+  return marked.parse(text) as string
 }
 
 /**
@@ -50,7 +28,7 @@ export function renderMarkdownWithMath(text: string): string {
   const { text: protectedText, blocks } = protectMathBlocks(text)
 
   // Render markdown
-  let html = marked.parse(protectedText, { renderer }) as string
+  let html = marked.parse(protectedText) as string
 
   // Restore math blocks
   html = restoreMathBlocks(html, blocks)
