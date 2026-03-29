@@ -395,7 +395,7 @@ export interface NormalizedMessage {
 
 // ── Chat v2 Types ──────────────────────────────────────
 
-export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+export type PermissionMode = 'default' | 'skip' | 'acceptEdits' | 'plan' | 'bypassPermissions'
 
 export interface PendingPermission {
   id: string
@@ -499,6 +499,8 @@ export type ChatV2WebSocketMessage =
       workingDir?: string
       provider?: string
       permissionMode?: PermissionMode
+      model?: string
+      thinkingEnabled?: boolean
       images?: string[]
     }
   | { type: 'abort'; sessionId: string }
@@ -521,6 +523,7 @@ export interface ProviderQueryOptions {
   workingDir?: string
   model?: string
   permissionMode?: PermissionMode
+  thinkingEnabled?: boolean
   images?: string[]
 }
 

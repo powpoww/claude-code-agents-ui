@@ -69,18 +69,21 @@ function handleOpenFile(filePath: string) {
       class="message-group"
     >
       <!-- User Message Group -->
-      <div v-if="group.role === 'user'" class="flex justify-end overflow-hidden">
+      <div v-if="group.role === 'user'" class="flex justify-end">
         <div class="flex items-start gap-3 max-w-[85%] min-w-0">
           <div class="flex flex-col items-end gap-1.5 min-w-0">
             <!-- All user messages in this group -->
             <div
               v-for="(msg, idx) in group.messages"
               :key="msg.id"
-              class="px-4 py-2.5 overflow-hidden"
+              class="px-4 py-2.5"
               :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
               style="background: var(--accent); color: white;"
             >
-              <div class="text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere">{{ msg.content }}</div>
+              <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
+                <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[200px] max-h-[200px] rounded-lg object-contain bg-white/10" />
+              </div>
+              <div v-if="msg.content" class="text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full">{{ msg.content }}</div>
             </div>
             <!-- Single timestamp for the group -->
             <div class="text-[10px] px-1" style="color: var(--text-tertiary);">
@@ -165,7 +168,13 @@ function handleOpenFile(filePath: string) {
 <style scoped>
 .overflow-wrap-anywhere {
   overflow-wrap: anywhere;
+  word-wrap: break-word;
   word-break: break-word;
+}
+
+/* Force content to respect container width */
+.max-w-full {
+  max-width: 100%;
 }
 
 .thinking-dots {

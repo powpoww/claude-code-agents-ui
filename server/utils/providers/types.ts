@@ -77,6 +77,7 @@ export interface ProviderQueryOptions {
   model?: string
   permissionMode?: PermissionMode
   images?: string[]
+  thinkingEnabled?: boolean
   /** User message to save with correct sessionId (passed from WS handler) */
   userMessage?: NormalizedMessage
 }

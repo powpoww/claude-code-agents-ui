@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Agent, AgentFrontmatter, AgentModel, AgentMemory } from '~/types'
+import type { Agent, AgentFrontmatter, AgentMemory } from '~/types'
+import { MODEL_OPTIONS, DEFAULT_MODEL } from '~/utils/models'
 
 const emit = defineEmits<{
   saved: [agent: Agent]
@@ -16,7 +17,7 @@ const totalSteps = 3
 const frontmatter = ref<AgentFrontmatter>({
   name: '',
   description: '',
-  model: 'sonnet',
+  model: DEFAULT_MODEL,
 })
 const body = ref('')
 
@@ -60,19 +61,13 @@ async function finish() {
   }
 }
 
-const modelOptions: { value: AgentModel | undefined; label: string; desc: string }[] = [
-  { value: 'sonnet', label: 'Sonnet', desc: 'Best balance of speed and quality. Good for most tasks.' },
-  { value: 'opus', label: 'Opus', desc: 'Most capable. Best for complex reasoning and nuanced tasks.' },
-  { value: 'haiku', label: 'Haiku', desc: 'Fastest and cheapest. Great for simple, repetitive tasks.' },
-  { value: undefined, label: 'Default', desc: 'Uses whatever model is set in your Claude Code config.' },
-]
-
 const memoryOptions: { value: AgentMemory | undefined; label: string; desc: string }[] = [
   { value: undefined, label: 'No memory', desc: 'Starts fresh every conversation. Good for stateless tasks.' },
   { value: 'user', label: 'Per person', desc: 'Remembers your preferences and style across conversations.' },
-  { value: 'project', label: 'Per project', desc: 'Remembers context about the project it\'s working on.' },
+  { value: 'project', label: 'Per project', desc: "Remembers context about the project it's working on." },
 ]
 </script>
+
 
 <template>
   <div class="p-6 space-y-5 bg-overlay w-[480px] max-w-full">
@@ -135,7 +130,7 @@ const memoryOptions: { value: AgentMemory | undefined; label: string; desc: stri
         </label>
         <div class="space-y-1.5">
           <button
-            v-for="opt in modelOptions"
+            v-for="opt in MODEL_OPTIONS"
             :key="opt.label"
             type="button"
             class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DisplayChatMessage } from '~/types'
-import { renderMarkdownWithMath } from '~/utils/markdown'
+import { renderMarkdownWithHighlighting } from '~/utils/markdown'
 import { formatContent } from '~/utils/messageFormatting'
 
 const props = defineProps<{
@@ -18,11 +18,16 @@ const showThinking = ref(false)
 const showToolDetails = ref(false)
 const copied = ref(false)
 
-// Format and render content
-const renderedContent = computed(() => {
-  if (!props.message.content) return ''
+// Format and render content (async for Shiki highlighting)
+const renderedContent = ref('')
+
+watchEffect(async () => {
+  if (!props.message.content) {
+    renderedContent.value = ''
+    return
+  }
   const formatted = formatContent(props.message.content)
-  return renderMarkdownWithMath(formatted)
+  renderedContent.value = await renderMarkdownWithHighlighting(formatted)
 })
 
 // Extract filename from tool input
@@ -36,6 +41,8 @@ const toolFileName = computed(() => {
   if (input.path) return input.path
   if (input.filePath) return input.filePath
   if (input.filename) return input.filename
+  // Glob uses 'pattern' field
+  if (input.pattern) return input.pattern
 
   return null
 })
@@ -177,10 +184,13 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
 </script>
 
 <template>
-  <div class="message-item overflow-hidden">
+  <div class="message-item overflow-hidden max-w-full min-w-0">
     <!-- User Message - shouldn't appear here since handled by parent, but just in case -->
     <template v-if="message.role === 'user'">
-      <div class="text-[13px] whitespace-pre-wrap" style="color: var(--text-primary);">
+      <div v-if="message.images && message.images.length > 0" class="flex flex-wrap gap-2 mb-2">
+        <img v-for="(img, i) in message.images" :key="i" :src="img" class="max-w-[200px] max-h-[200px] rounded object-contain border" style="border-color: var(--border-subtle);" />
+      </div>
+      <div v-if="message.content" class="text-[13px] whitespace-pre-wrap" style="color: var(--text-primary);">
         {{ message.content }}
       </div>
     </template>
@@ -189,7 +199,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
     <template v-else-if="message.kind === 'text' && message.content">
       <div class="group relative">
         <div
-          class="prose prose-sm max-w-none text-[13px] leading-relaxed"
+          class="prose prose-sm text-[13px] leading-relaxed"
           style="color: var(--text-primary);"
           v-html="renderedContent"
         />
@@ -286,10 +296,10 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
         <!-- Output -->
         <div
           v-if="showToolDetails && message.toolResult"
-          class="rounded-lg overflow-auto max-h-48 font-mono text-[11px] p-3"
+          class="rounded-lg overflow-x-auto max-h-48 max-w-full font-mono text-[11px] p-3"
           style="background: #1a1b26; color: #a9b1d6;"
         >
-          <pre class="whitespace-pre-wrap">{{ typeof message.toolResult === 'string' ? message.toolResult : JSON.stringify(message.toolResult, null, 2) }}</pre>
+          <pre class="whitespace-pre-wrap break-all">{{ typeof message.toolResult === 'string' ? message.toolResult : JSON.stringify(message.toolResult, null, 2) }}</pre>
         </div>
       </div>
     </template>
@@ -364,8 +374,8 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
       </div>
     </template>
 
-    <!-- Tool Use - Compact inline style with clickable filename -->
-    <template v-else-if="message.kind === 'tool_use'">
+    <!-- Tool Use - Read/Write/Glob show filename only -->
+    <template v-else-if="message.kind === 'tool_use' && ['Read', 'Write', 'Glob'].includes(message.toolName || '')">
       <div class="flex items-start gap-2">
         <!-- Left border indicator -->
         <div
@@ -374,9 +384,47 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
         />
 
         <div class="flex-1 min-w-0">
-          <!-- Tool header with filename -->
+          <div class="text-[12px] flex items-center gap-2">
+            <span style="color: var(--text-secondary);">{{ message.toolName }}</span>
+
+            <!-- Clickable filename -->
+            <template v-if="displayFileName">
+              <span style="color: var(--text-tertiary);">/</span>
+              <span
+                class="font-medium cursor-pointer hover:underline truncate"
+                :style="{ color: getToolColor(message.toolName || 'unknown') }"
+                @click.stop="handleFileClick"
+                :title="toolFileName"
+              >
+                {{ displayFileName }}
+              </span>
+            </template>
+
+            <!-- Error badge -->
+            <span
+              v-if="message.isError"
+              class="px-1.5 py-0.5 rounded text-[10px]"
+              style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"
+            >
+              Error
+            </span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template v-else-if="message.kind === 'tool_use'">
+      <div class="flex items-start gap-2 min-w-0 overflow-hidden">
+        <!-- Left border indicator -->
+        <div
+          class="w-0.5 self-stretch rounded-full shrink-0"
+          :style="{ background: getToolColor(message.toolName || 'unknown') }"
+        />
+
+        <div class="flex-1 min-w-0">
+          <!-- Tool header -->
           <button
-            class="inline-flex items-center gap-1.5 text-[12px] font-medium"
+            class="inline-flex items-center gap-1.5 text-[12px] font-medium w-full text-left"
             style="color: var(--text-secondary);"
             @click="showToolDetails = !showToolDetails"
           >
@@ -409,12 +457,12 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
           </button>
 
           <!-- Expanded details -->
-          <div v-if="showToolDetails" class="mt-2 space-y-2">
+          <div v-if="showToolDetails" class="mt-2 space-y-2 max-w-full overflow-hidden">
             <!-- Input -->
             <div v-if="message.toolInput">
               <div class="text-[10px] font-medium mb-1" style="color: var(--text-tertiary);">Input</div>
               <pre
-                class="text-[11px] p-2 rounded-lg overflow-auto max-h-32 font-mono"
+                class="text-[11px] p-2 rounded-lg overflow-x-auto max-h-48 max-w-full font-mono whitespace-pre-wrap break-all"
                 style="background: var(--surface-base); color: var(--text-secondary);"
               >{{ JSON.stringify(message.toolInput, null, 2) }}</pre>
             </div>
@@ -423,7 +471,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
             <div v-if="message.toolResult">
               <div class="text-[10px] font-medium mb-1" style="color: var(--text-tertiary);">Result</div>
               <pre
-                class="text-[11px] p-2 rounded-lg overflow-auto max-h-32 font-mono"
+                class="text-[11px] p-2 rounded-lg overflow-x-auto max-h-48 max-w-full font-mono whitespace-pre-wrap break-all"
                 :style="{
                   background: 'var(--surface-base)',
                   color: message.isError ? '#ef4444' : 'var(--text-secondary)',
@@ -575,6 +623,10 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   word-break: break-word;
 }
 
+.prose {
+  max-width: 100%;
+}
+
 /* ============================================
    PROSE STYLING - Using App CSS Variables
    Synced with main.css design system
@@ -587,6 +639,8 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   margin: 0.5rem 0;
   color: var(--text-primary);
   line-height: 1.65;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose :deep(p:first-child) {
@@ -689,6 +743,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   border-collapse: collapse;
   margin: 1rem 0;
   font-size: 0.9em;
+  table-layout: fixed;
 }
 
 .prose :deep(th),
@@ -697,6 +752,8 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   border: 1px solid var(--border-default);
   text-align: left;
   color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose :deep(th) {
@@ -722,7 +779,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   padding: 0.2em 0.4em;
   border-radius: 0.25rem;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace);
-  word-break: break-word;
+  word-break: break-all;
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
 }
@@ -749,8 +806,9 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   font-size: 0.875em;
   line-height: 1.7;
   display: block;
-  white-space: pre;
-  word-break: normal;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: break-word;
   border: none;
 }
 
@@ -791,5 +849,62 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
   max-width: 100%;
   border-radius: 0.5rem;
   margin: 0.5rem 0;
+}
+
+/* ----------------------------------------
+   Shiki syntax-highlighted code blocks
+   ---------------------------------------- */
+
+/* Strip the default prose <pre> styles when Shiki is rendering */
+.prose :deep(.shiki-wrapper) {
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Language badge */
+.prose :deep(.shiki-wrapper[data-lang]:not([data-lang=''])::before) {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.65rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: rgba(205, 214, 244, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The shiki <pre> itself */
+.prose :deep(.shiki-wrapper pre) {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0;
+  border: none;
+  overflow-x: auto;
+  background: #1e1e2e !important; /* tokyo-night */
+}
+
+/* Code inside shiki pre */
+.prose :deep(.shiki-wrapper pre code) {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875em;
+  line-height: 1.7;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Shiki inline spans carry their own color — don't override */
+.prose :deep(.shiki-wrapper pre code span) {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
 }
 </style>

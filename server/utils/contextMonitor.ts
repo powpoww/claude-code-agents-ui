@@ -1,6 +1,7 @@
 import chokidar, { type FSWatcher } from 'chokidar'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { getModelPricing, getModelContextWindow } from './models'
 
 export interface FileChange {
   path: string
@@ -47,37 +48,12 @@ export interface ContextMetrics {
   tools: ToolCall[]
 }
 
-// Model pricing (per million tokens)
-// Source: https://www.anthropic.com/pricing
-const PRICING = {
-  'claude-sonnet-4': {
-    input: 3.0,
-    output: 15.0,
-    cached: 0.3,
-  },
-  'claude-opus-4': {
-    input: 15.0,
-    output: 75.0,
-    cached: 1.5,
-  },
-  'claude-haiku-4': {
-    input: 0.8,
-    output: 4.0,
-    cached: 0.08,
-  },
-  // Default fallback
-  default: {
-    input: 3.0,
-    output: 15.0,
-    cached: 0.3,
-  },
-}
-
 /**
- * Calculate cost from token usage
+ * Calculate cost from token usage.
+ * Model string can be a full API id ("claude-sonnet-4") or a short alias ("sonnet").
  */
 export function calculateCost(tokens: TokenUsage, model: string = 'default'): CostBreakdown {
-  const pricing = PRICING[model as keyof typeof PRICING] || PRICING.default
+  const pricing = getModelPricing(model)
 
   const inputCost = (tokens.input / 1_000_000) * pricing.input
   const outputCost = (tokens.output / 1_000_000) * pricing.output
@@ -247,17 +223,18 @@ export function watchDirectory(
 /**
  * Calculate context window utilization
  */
-export function calculateContextWindow(tokens: TokenUsage, maxTokens: number = 200_000): {
+export function calculateContextWindow(tokens: TokenUsage, maxTokens?: number): {
   used: number
   total: number
   percentage: number
 } {
+  const total = maxTokens ?? getModelContextWindow(undefined)
   const used = tokens.input + tokens.output + tokens.cached
-  const percentage = Math.min(100, (used / maxTokens) * 100)
+  const percentage = Math.min(100, (used / total) * 100)
 
   return {
     used,
-    total: maxTokens,
+    total,
     percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
   }
 }
@@ -280,7 +257,7 @@ export function createEmptyMetrics(): ContextMetrics {
     },
     contextWindow: {
       used: 0,
-      total: 200_000,
+      total: getModelContextWindow(undefined),
       percentage: 0,
     },
     files: {

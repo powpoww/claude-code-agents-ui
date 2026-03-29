@@ -77,6 +77,8 @@ export default defineWebSocketHandler({
               agentInstructions,
               workingDir: msg.workingDir,
               permissionMode: msg.permissionMode,
+              model: msg.model,
+              thinkingEnabled: msg.thinkingEnabled,
               images: msg.images,
               // Pass user message for provider to save with correct sessionId
               userMessage,

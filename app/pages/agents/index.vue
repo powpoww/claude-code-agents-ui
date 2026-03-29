@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { getAgentColor, modelColors } from '~/utils/colors'
+import { getAgentColor } from '~/utils/colors'
+import { getModelBadgeClasses } from '~/utils/models'
 import { agentTemplates } from '~/utils/templates'
 
 const { agents, loading, error, create, fetchAll: fetchAgents } = useAgents()
@@ -117,9 +118,9 @@ async function useTemplate(templateId: string) {
               {{ agent.frontmatter.name }}
             </span>
             <span
-              v-if="agent.frontmatter.model && modelColors[agent.frontmatter.model]"
+              v-if="agent.frontmatter.model"
               class="text-[10px] font-mono font-medium px-1.5 py-px rounded-full shrink-0"
-              :class="[modelColors[agent.frontmatter.model].bg, modelColors[agent.frontmatter.model].text]"
+              :class="[getModelBadgeClasses(agent.frontmatter.model).bg, getModelBadgeClasses(agent.frontmatter.model).text]"
             >
               {{ agent.frontmatter.model }}
             </span>

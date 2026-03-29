@@ -386,3 +386,84 @@ All TypeScript types are centralized in `app/types/index.ts`. Key types:
 - `CliWebSocketMessage`, `CliWebSocketEvent` - Terminal WebSocket types
 - `NormalizedMessage`, `ChatSession`, `ChatSessionSummary` - Chat mode types
 - `ChatWebSocketMessage`, `ChatWebSocketEvent` - Chat WebSocket types
+
+## Model Registry Design
+
+All model-related data is centralized in **two canonical files**. Never inline model colors, labels, pricing, option lists, or model string comparisons elsewhere.
+
+### Frontend — `app/utils/models.ts`
+
+Single source of truth for all UI-facing model metadata:
+
+```typescript
+// ✅ Use these in all .vue files and app/utils/
+import {
+  MODEL,               // { OPUS, SONNET, HAIKU } — named constants for comparisons/defaults
+  MODEL_IDS,           // ['opus', 'sonnet', 'haiku'] — canonical list for iteration
+  MODEL_META,          // Full per-model metadata (label, description, colors, etc.)
+  MODEL_OPTIONS,       // Options array for picker UIs (includes "Default" entry)
+  MODEL_OPTIONS_COMPACT, // Compact options for toggle-button pickers
+  MODEL_OPTIONS_CHAT,  // Options with { value, label, description } for chat selectors
+  DEFAULT_MODEL,       // 'sonnet' — default when no model is specified
+  getModelLabel,       // Human-readable label
+  getModelTagline,     // One-liner ("Balanced", "Most capable", ...)
+  getModelColor,       // Hex color for charts/bars
+  getModelBadgeClasses, // Tailwind bg+text classes for badges
+  getModelBadgeStyle,  // Inline style object (use in templates with dynamic binding)
+} from '~/utils/models'
+```
+
+**Comparisons and defaults — always use constants, never raw strings:**
+
+```typescript
+// ✅ Correct
+import { MODEL, DEFAULT_MODEL } from '~/utils/models'
+const selectedModel = ref(DEFAULT_MODEL)           // not ref('sonnet')
+if (model === MODEL.SONNET) { ... }               // not if (model === 'sonnet')
+frontmatter.model = MODEL.OPUS                    // not frontmatter.model = 'opus'
+
+// ✅ Iterating all models
+import { MODEL_IDS } from '~/utils/models'
+MODEL_IDS.map(id => ({ value: id, label: MODEL_META[id].label }))
+
+// ❌ Never
+const selectedModel = ref('sonnet')
+if (model === 'opus') { ... }
+```
+
+Each `ModelMeta` entry contains: `label`, `tagline`, `description`, `badgeBg`, `badgeText`, `color`, `contextWindow`.
+
+**Adding a new model**: add one entry to `MODEL`, `MODEL_IDS`, and `MODEL_META`. All downstream UI automatically picks it up.
+
+### Server — `server/utils/models.ts`
+
+Server-side mirror with pricing and API model IDs:
+
+```typescript
+import {
+  MODEL_ALIAS_KEY,      // { OPUS, SONNET, HAIKU } — named alias key constants
+  DEFAULT_MODEL_ALIAS,  // 'sonnet' — server-side default
+  SERVER_MODEL_META,    // Full pricing + context window per model id
+  MODEL_ALIAS,          // 'sonnet' → 'claude-sonnet-4' mapping (full ids)
+  getModelPricing,      // Pricing for cost calculation
+  getModelContextWindow, // Context window for utilization tracking
+  resolveModelMeta,     // Resolve alias OR full id → ServerModelMeta
+} from './models'       // (relative import from server/utils/)
+```
+
+```typescript
+// ✅ Correct (server-side)
+import { MODEL_ALIAS_KEY } from '../models'
+models: Object.values(MODEL_ALIAS_KEY)   // not ['sonnet', 'opus', 'haiku']
+if (model === MODEL_ALIAS_KEY.SONNET)    // not if (model === 'sonnet')
+```
+
+**Updating pricing**: edit `SERVER_MODEL_META` in `server/utils/models.ts` only.
+
+### Design Principles
+
+1. **One edit = one place**: Adding a model → edit `MODEL`/`MODEL_IDS`/`MODEL_META` (frontend) and `MODEL_ALIAS_KEY`/`MODEL_ALIAS`/`SERVER_MODEL_META` (server). All consumers update automatically.
+2. **No raw string literals in logic**: String literals (`'sonnet'`, `'opus'`) live only in `models.ts` definitions. Every comparison and default elsewhere is a `MODEL.X` constant.
+3. **No inline model data**: No hardcoded `rgba()` per model in templates. No `{ opus: '...', sonnet: '...', haiku: '...' }` spread across components.
+4. **Frontend/server split**: App utils cannot be imported server-side (different module context). Each layer has its own registry file.
+5. **Backwards compat**: Legacy helpers (e.g., `getFriendlyModelName` in `terminology.ts`) are kept with `@deprecated` JSDoc and delegate to the new helpers.

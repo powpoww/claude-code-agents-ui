@@ -291,6 +291,8 @@ export function useChatV2Handler() {
       workingDir?: string
       provider?: string
       permissionMode?: PermissionMode
+      model?: string
+      thinkingEnabled?: boolean
       images?: string[]
     } = {}
   ): boolean {
@@ -325,6 +327,8 @@ export function useChatV2Handler() {
       workingDir?: string
       provider?: string
       permissionMode?: PermissionMode
+      model?: string
+      thinkingEnabled?: boolean
       images?: string[]
     } = {}
   ): boolean {
@@ -340,6 +344,8 @@ export function useChatV2Handler() {
       workingDir: options.workingDir,
       provider: options.provider,
       permissionMode: options.permissionMode || permissions.permissionMode.value,
+      model: options.model,
+      thinkingEnabled: options.thinkingEnabled,
       images: options.images,
     }
 

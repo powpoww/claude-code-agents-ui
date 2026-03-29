@@ -8,7 +8,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
-  (e: 'send'): void
+  (e: 'send', images: string[]): void
   (e: 'abort'): void
   (e: 'focus'): void
   (e: 'blur'): void
@@ -23,6 +23,37 @@ const localValue = computed({
   set: (value) => emit('update:modelValue', value),
 })
 
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const attachedImages = ref<{ url: string; file: File }[]>([])
+
+function handleFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files?.length) return
+
+  Array.from(target.files).forEach(file => {
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        if (e.target?.result && typeof e.target.result === 'string') {
+          attachedImages.value.push({ url: e.target.result, file })
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  })
+  target.value = '' // Reset input
+}
+
+function removeImage(index: number) {
+  attachedImages.value.splice(index, 1)
+}
+
+function triggerSend() {
+  const images = attachedImages.value.map(img => img.url)
+  emit('send', images)
+  attachedImages.value = []
+}
+
 // Auto-resize textarea
 function autoResize() {
   if (!textareaRef.value) return
@@ -36,8 +67,8 @@ function autoResize() {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
-    if (!props.disabled && localValue.value.trim()) {
-      emit('send')
+    if (!props.disabled && (localValue.value.trim() || attachedImages.value.length > 0)) {
+      triggerSend()
     }
   }
 }
@@ -55,6 +86,20 @@ onMounted(() => {
 
 <template>
   <div class="px-3 py-2" style="background: var(--surface);">
+    <!-- Image Previews -->
+    <div v-if="attachedImages.length > 0" class="flex gap-2 mb-2 overflow-x-auto pb-1">
+      <div v-for="(img, idx) in attachedImages" :key="idx" class="relative group shrink-0">
+        <img :src="img.url" class="h-16 w-16 object-cover rounded-lg border" style="border-color: var(--border-subtle);" />
+        <button
+          class="absolute -top-1.5 -right-1.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          style="background: #ef4444; color: white; border: 1px solid var(--surface);"
+          @click="removeImage(idx)"
+        >
+          <UIcon name="i-lucide-x" class="size-3" />
+        </button>
+      </div>
+    </div>
+
     <!-- Input container -->
     <div
       class="relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200"
@@ -84,6 +129,17 @@ onMounted(() => {
 
       <!-- Action buttons -->
       <div class="flex items-center gap-1 shrink-0">
+        <!-- Attach button -->
+        <button
+          class="p-1.5 rounded-lg transition-all hover:bg-[var(--surface-hover)]"
+          style="color: var(--text-secondary);"
+          title="Attach image"
+          @click="fileInputRef?.click()"
+        >
+          <UIcon name="i-lucide-paperclip" class="size-4" />
+        </button>
+        <input ref="fileInputRef" type="file" accept="image/*" multiple class="hidden" @change="handleFileSelect" />
+
         <!-- Abort button when streaming -->
         <button
           v-if="isStreaming"
@@ -100,13 +156,13 @@ onMounted(() => {
           v-else
           class="p-1.5 rounded-lg transition-all"
           :style="{
-            background: disabled || !localValue.trim() ? 'transparent' : 'var(--accent)',
-            color: disabled || !localValue.trim() ? 'var(--text-disabled)' : 'white',
-            cursor: disabled || !localValue.trim() ? 'not-allowed' : 'pointer',
+            background: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'transparent' : 'var(--accent)',
+            color: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--text-disabled)' : 'white',
+            cursor: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'not-allowed' : 'pointer',
           }"
-          :disabled="disabled || !localValue.trim()"
+          :disabled="disabled || (!localValue.trim() && attachedImages.length === 0)"
           title="Send message"
-          @click="emit('send')"
+          @click="triggerSend"
         >
           <UIcon name="i-lucide-arrow-up" class="size-4" />
         </button>

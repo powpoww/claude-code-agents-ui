@@ -8,6 +8,7 @@ import { normalizeSDKMessage } from '../messageNormalizer'
 import { resolveClaudePath } from '../claudeDir'
 import { parseFrontmatter } from '../frontmatter'
 import { saveMessageToSession, getSessionMessages, getSessionMessagesCount, hasAssistantMessages } from '../chatSessionStorage'
+import { MODEL_ALIAS_KEY } from '../models'
 
 // Store active query instances for interruption
 interface QueryInstance {
@@ -22,6 +23,10 @@ const activeQueries = new Map<string, QueryInstance>()
  */
 function mapPermissionMode(mode?: string): string {
   switch (mode) {
+    case 'default':
+      return 'default'
+    case 'skip':
+      return 'skip'
     case 'acceptEdits':
       return 'acceptEdits'
     case 'bypassPermissions':
@@ -111,12 +116,18 @@ export const claudeProvider: ProviderAdapter = {
         sdkOptions.model = options.model
       }
 
+      // Add thinking mode if enabled
+      if (options.thinkingEnabled) {
+        sdkOptions.model = { type: 'thinking', enabled: true }
+      }
+
       console.log('[ClaudeProvider] Starting query with options:', {
         hasSessionId: !!options.sessionId,
         shouldResume,
         cwd: sdkOptions.cwd,
         model: sdkOptions.model,
         permissionMode: sdkOptions.permissionMode,
+        thinkingEnabled: options.thinkingEnabled,
       })
 
       // Create query instance
@@ -321,7 +332,7 @@ export const claudeProviderInfo: ProviderInfo = {
   name: 'claude',
   displayName: 'Claude',
   description: 'Anthropic Claude via Claude Agent SDK',
-  models: ['sonnet', 'opus', 'haiku'],
+  models: Object.values(MODEL_ALIAS_KEY),
   supportsPermissions: true,
   supportsImages: true,
   supportsInterrupt: true,

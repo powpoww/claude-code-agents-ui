@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Agent, AgentFrontmatter } from "~/types";
+import { MODEL, MODEL_IDS, MODEL_META } from "~/utils/models";
 
 const props = defineProps<{
   mode: "create" | "edit";
@@ -123,34 +124,17 @@ async function save() {
             none
           </button>
           <button
+            v-for="id in MODEL_IDS"
+            :key="id"
             type="button"
-            class="pill-picker__option pill-picker__option--opus"
-            :class="{
-              'pill-picker__option--active': frontmatter.model === 'opus',
-            }"
-            @click="frontmatter.model = 'opus'"
+            :class="[
+              'pill-picker__option',
+              `pill-picker__option--${id}`,
+              { 'pill-picker__option--active': frontmatter.model === id },
+            ]"
+            @click="frontmatter.model = id"
           >
-            opus
-          </button>
-          <button
-            type="button"
-            class="pill-picker__option pill-picker__option--sonnet"
-            :class="{
-              'pill-picker__option--active': frontmatter.model === 'sonnet',
-            }"
-            @click="frontmatter.model = 'sonnet'"
-          >
-            sonnet
-          </button>
-          <button
-            type="button"
-            class="pill-picker__option pill-picker__option--haiku"
-            :class="{
-              'pill-picker__option--active': frontmatter.model === 'haiku',
-            }"
-            @click="frontmatter.model = 'haiku'"
-          >
-            haiku
+            {{ MODEL_META[id].label.toLowerCase() }}
           </button>
         </div>
       </div>

@@ -1,10 +1,5 @@
+import { getModelTagline } from '~/utils/models'
 import type { AgentModel } from '~/types'
-
-export const friendlyModelName: Record<AgentModel, string> = {
-  opus: 'Most capable',
-  sonnet: 'Balanced',
-  haiku: 'Fast & efficient',
-}
 
 export const friendlyToolName: Record<string, string> = {
   Read: 'Reading your files...',
@@ -16,8 +11,12 @@ export const friendlyToolName: Record<string, string> = {
   Agent: 'Working on a subtask...',
 }
 
+/**
+ * @deprecated Import `getModelTagline` from `~/utils/models` instead.
+ * Kept for backwards compat during migration.
+ */
 export function getFriendlyModelName(model: AgentModel | undefined): string {
-  return model ? friendlyModelName[model] ?? model : 'Balanced'
+  return getModelTagline(model)
 }
 
 export function getFriendlyToolName(tool: string): string {

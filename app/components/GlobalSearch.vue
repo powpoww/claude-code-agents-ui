@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { getAgentColor, modelColors } from '~/utils/colors'
+import { getAgentColor } from '~/utils/colors'
+import { getModelBadgeClasses } from '~/utils/models'
 
 const router = useRouter()
 const { agents } = useAgents()
@@ -154,9 +155,9 @@ if (import.meta.client) {
             </span>
 
             <span
-              v-if="result.model && modelColors[result.model]"
+              v-if="result.model"
               class="text-[10px] font-mono font-medium px-1 py-px rounded-full shrink-0"
-              :class="[modelColors[result.model].bg, modelColors[result.model].text]"
+              :class="[getModelBadgeClasses(result.model).bg, getModelBadgeClasses(result.model).text]"
             >
               {{ result.model }}
             </span>

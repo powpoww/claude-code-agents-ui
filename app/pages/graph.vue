@@ -8,6 +8,7 @@ import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 import type { Relationship } from '~/types'
 import { getAgentColor } from '~/utils/colors'
+import { getModelBadgeStyle } from '~/utils/models'
 
 const { agents } = useAgents()
 const { commands } = useCommands()
@@ -416,10 +417,7 @@ function onNodeClick(first: unknown, second?: unknown) {
               <span
                 v-if="data.model"
                 class="ml-auto text-[9px] font-mono font-medium px-1.5 py-px rounded-full shrink-0"
-                :style="{
-                  background: data.model === 'opus' ? 'rgba(192,132,252,0.15)' : data.model === 'sonnet' ? 'rgba(96,165,250,0.15)' : 'rgba(251,191,36,0.15)',
-                  color: data.model === 'opus' ? 'var(--model-opus)' : data.model === 'sonnet' ? 'var(--model-sonnet)' : 'var(--model-haiku)',
-                }"
+                :style="getModelBadgeStyle(data.model)"
               >
                 {{ data.model }}
               </span>

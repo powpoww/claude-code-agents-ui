@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
 import { getAgentColor } from '~/utils/colors'
+import { getModelLabel } from '~/utils/models'
 
 const props = defineProps<{
   data: {
@@ -21,13 +22,7 @@ const emit = defineEmits<{
 
 const color = computed(() => getAgentColor(props.data.agentColor))
 
-const modelLabel = computed(() => {
-  const m = props.data.agentModel
-  if (m === 'opus') return 'Opus'
-  if (m === 'sonnet') return 'Sonnet'
-  if (m === 'haiku') return 'Haiku'
-  return 'Default'
-})
+const modelLabel = computed(() => getModelLabel(props.data.agentModel) ?? 'Default')
 </script>
 
 <template>

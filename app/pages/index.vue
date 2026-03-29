@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { getAgentColor, modelColors } from "~/utils/colors";
+import { getAgentColor } from "~/utils/colors";
+import { MODEL_IDS, getModelLabel, getModelColor, getModelBadgeClasses } from "~/utils/models";
 
 const { claudeDir, set: setDir } = useClaudeDir();
 const { agents, fetchAll: fetchAgents } = useAgents();
@@ -98,24 +99,16 @@ async function changeDir() {
   }
 }
 
-const modelLabels: Record<string, string> = {
-  opus: "Opus",
-  sonnet: "Sonnet",
-  haiku: "Haiku",
-  unset: "Default",
-};
-
+const UNSET_KEY = 'unset';
 const modelBreakdown = computed(() => {
-  const counts: Record<string, number> = {
-    opus: 0,
-    sonnet: 0,
-    haiku: 0,
-    unset: 0,
-  };
+  // Build initial counts from the canonical MODEL_IDS list — no hardcoded strings
+  const counts: Record<string, number> = Object.fromEntries(
+    [...MODEL_IDS, UNSET_KEY].map((k) => [k, 0])
+  );
   for (const a of agents.value) {
     const m = a.frontmatter.model;
-    if (m && counts[m] !== undefined) counts[m]++;
-    else counts.unset++;
+    const key = m && m in counts ? m : UNSET_KEY;
+    counts[key] = (counts[key] ?? 0) + 1;
   }
   return counts;
 });
@@ -130,12 +123,6 @@ const modelPercentages = computed(() => {
   return result;
 });
 
-const modelBarColors: Record<string, string> = {
-  opus: "#7C3AED",
-  sonnet: "#2563EB",
-  haiku: "#D97706",
-  unset: "#71717a",
-};
 
 const hasContent = computed(
   () =>
@@ -236,7 +223,7 @@ const statItems = computed(() => [
             class="proportion-bar__segment"
             :style="{
               flexGrow: pct,
-              background: modelBarColors[model] || '#71717a',
+              background: getModelColor(model),
             }"
           />
         </div>
@@ -250,12 +237,12 @@ const statItems = computed(() => [
           >
             <div
               class="size-2 rounded-full"
-              :style="{ background: modelBarColors[model] || '#71717a' }"
+              :style="{ background: getModelColor(model) }"
             />
             <span
               class="text-[11px] font-medium"
               style="color: var(--text-secondary)"
-              >{{ modelLabels[model] }}</span
+              >{{ getModelLabel(model) }}</span
             >
             <span class="font-mono text-[11px] tabular-nums text-meta">{{
               count
@@ -336,12 +323,12 @@ const statItems = computed(() => [
               <span
                 v-if="
                   agent.frontmatter.model &&
-                  modelColors[agent.frontmatter.model]
+                  getModelBadgeClasses(agent.frontmatter.model)
                 "
                 class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full shrink-0"
                 :class="[
-                  modelColors[agent.frontmatter.model].bg,
-                  modelColors[agent.frontmatter.model].text,
+                  getModelBadgeClasses(agent.frontmatter.model).bg,
+                  getModelBadgeClasses(agent.frontmatter.model).text,
                 ]"
               >
                 {{ agent.frontmatter.model }}
