@@ -54,6 +54,8 @@ const isLoadingSessions = ref(false)
 const inputText = ref('')
 const messagesContainerRef = ref<HTMLElement | null>(null)
 const sidebarCollapsed = ref(false)
+const mobileSidebarOpen = ref(false)
+const showContextDetails = ref(false)
 const isCreatingSession = ref(false)
 const isInputFocused = ref(false)
 
@@ -852,10 +854,11 @@ function handleOpenFile(filePath: string) {
           </button>
 
           <!-- Context Usage Circle -->
-          <UTooltip :text="`Context: ${contextMonitor.contextUsageText.value}`" :popper="{ placement: 'top' }">
+          <UTooltip :text="`Context: ${contextMonitor.contextUsageText.value} - Click for details`" :popper="{ placement: 'top' }">
             <div 
-              class="flex items-center justify-center size-9 rounded-full shadow-lg border backdrop-blur-md transition-all"
+              class="flex items-center justify-center size-8 sm:size-9 rounded-full shadow-lg border backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95"
               style="background: var(--surface-overlay); border-color: var(--border-subtle);"
+              @click="showContextDetails = !showContextDetails"
             >
               <div class="relative size-6">
                 <!-- SVG Progress Circle -->
@@ -918,4 +921,64 @@ function handleOpenFile(filePath: string) {
 
     </div>
   </div>
+
+  <!-- Floating Right Sidebar - Context Details -->
+  <Teleport to="body">
+    <div class="fixed inset-0 z-[100] pointer-events-none">
+      <!-- Backdrop -->
+      <Transition name="fade">
+        <div 
+          v-if="showContextDetails" 
+          class="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" 
+          @click="showContextDetails = false" 
+        />
+      </Transition>
+
+      <!-- Sidebar Panel -->
+      <Transition name="slide">
+        <div 
+          v-if="showContextDetails"
+          class="absolute inset-y-0 right-0 flex flex-col shadow-2xl transition-all duration-300 pointer-events-auto border-l"
+          style="background: var(--surface-overlay); border-color: var(--border-subtle); width: min(400px, 90vw);"
+        >
+          <!-- Sidebar Header -->
+          <div class="shrink-0 px-4 h-14 border-b flex items-center justify-between" style="border-color: var(--border-subtle);">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-database" class="size-4 text-accent" />
+              <h3 class="text-[13px] font-semibold" style="color: var(--text-primary);">Context Details</h3>
+            </div>
+            <button
+              class="p-1.5 rounded-lg hover-bg transition-all"
+              style="background: var(--surface-raised);"
+              @click="showContextDetails = false"
+            >
+              <UIcon name="i-lucide-x" class="size-4" style="color: var(--text-tertiary);" />
+            </button>
+          </div>
+
+          <!-- Details Content -->
+          <div class="flex-1 overflow-y-auto">
+            <ChatV2ContextDetails :metrics="contextMonitor.metrics.value" />
+          </div>
+        </div>
+      </Transition>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+.slide-enter-active, .slide-leave-active {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.slide-enter-from, .slide-leave-to {
+  transform: translateX(100%);
+  opacity: 0.8;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>

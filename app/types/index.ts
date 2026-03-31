@@ -287,6 +287,7 @@ export interface TokenUsage {
   input: number
   output: number
   cached: number
+  cacheCreation?: number
 }
 
 export interface CostBreakdown {

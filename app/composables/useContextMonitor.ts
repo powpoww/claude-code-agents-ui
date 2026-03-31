@@ -241,7 +241,8 @@ export function useContextMonitor() {
     metrics.value.tokens = { 
       input: tokens.input, 
       output: tokens.output, 
-      cached: tokens.cacheRead || 0 
+      cached: tokens.cacheRead || 0,
+      cacheCreation: tokens.cacheCreation || 0
     }
     
     // Calculate context usage (reference logic: input + cacheCreation + cacheRead)
