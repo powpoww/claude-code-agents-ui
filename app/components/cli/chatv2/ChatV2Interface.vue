@@ -107,6 +107,7 @@ const isContinuingHistory = ref(false)
 
 // Local loading state with minimum duration for smooth UX
 const isLoadingHistoryWithDelay = ref(false)
+const isInitialScroll = ref(false)
 
 // URL state for history sessions
 const urlProjectName = ref<string | null>(null)
@@ -191,6 +192,26 @@ function handleClaudeCodeProjectSelected(payload: { projectName: string; project
 // Utility: delay for minimum loading time
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+// Scroll to bottom helper
+function scrollToBottom(behavior: ScrollBehavior = 'auto') {
+  nextTick(() => {
+    if (!messagesContainerRef.value) return
+    messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
+
+    // Use a small timeout to handle layout shifts from async rendering (images, code blocks)
+    setTimeout(() => {
+      if (messagesContainerRef.value) {
+        messagesContainerRef.value.scrollTo({
+          top: messagesContainerRef.value.scrollHeight,
+          behavior
+        })
+      }
+      // Finished scrolling - make container visible if it was hidden
+      isInitialScroll.value = false
+    }, 150)
+  })
+}
+
 // Handle Claude Code history session selection (no URL navigation)
 async function handleClaudeCodeSessionSelected(payload: { projectName: string; sessionId: string; sessionSummary: string; projectDisplayName: string }) {
   viewMode.value = 'history'
@@ -200,6 +221,7 @@ async function handleClaudeCodeSessionSelected(payload: { projectName: string; s
   currentSessionSummary.value = payload.sessionSummary
   currentProjectDisplayName.value = payload.projectDisplayName
   isContinuingHistory.value = false  // Reset when selecting a new history session
+  isInitialScroll.value = true // Set initial scroll flag
 
   // Start loading with minimum duration
   isLoadingHistoryWithDelay.value = true
@@ -214,11 +236,7 @@ async function handleClaudeCodeSessionSelected(payload: { projectName: string; s
   isLoadingHistoryWithDelay.value = false
 
   // Scroll to bottom (latest messages) after loading
-  nextTick(() => {
-    if (messagesContainerRef.value) {
-      messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
-    }
-  })
+  scrollToBottom()
 }
 
 // Handle selection cleared (back to projects list)
@@ -337,11 +355,9 @@ watch([displayMessages, streamingText], () => {
     }, REFRESH_DEBOUNCE_MS)
   }
 
-  nextTick(() => {
-    if (messagesContainerRef.value && (viewMode.value === 'live' || isContinuingHistory.value)) {
-      messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
-    }
-  })
+  if (viewMode.value === 'live' || isContinuingHistory.value) {
+    scrollToBottom()
+  }
 })
 
 // Track if we're loading more to prevent duplicate calls
@@ -703,8 +719,11 @@ function handleOpenFile(filePath: string) {
       <div class="flex-1 relative min-h-0">
         <div
           ref="messagesContainerRef"
-          class="h-full overflow-y-auto px-2 py-3 md:p-4 space-y-4"
-          style="background: var(--surface-base);"
+          class="h-full overflow-y-auto px-2 py-3 md:p-4 space-y-4 transition-opacity duration-200"
+          :style="{ 
+            background: 'var(--surface-base)',
+            opacity: isInitialScroll ? 0 : 1
+          }"
           @scroll="handleMessagesScroll"
         >
           <!-- Loading state for creating new session -->
