@@ -189,6 +189,12 @@ export function useClaudeCodeHistory() {
         hasMore: boolean
         projectName: string
         sessionId: string
+        tokenUsage?: {
+          input: number
+          output: number
+          cacheCreation: number
+          cacheRead: number
+        }
       }>(`/api/v2/claude-code/projects/${encodeURIComponent(projectName)}/sessions/${encodeURIComponent(sessionId)}/messages`, {
         query
       })
@@ -202,13 +208,16 @@ export function useClaudeCodeHistory() {
 
       messagesHasMore.value = response.hasMore
       messagesTotal.value = response.total
-      return response.messages
+      return {
+        messages: response.messages,
+        tokenUsage: response.tokenUsage
+      }
     } catch (error) {
       console.error('Failed to fetch messages:', error)
       if (offset === 0) {
         messages.value = []
       }
-      return []
+      return { messages: [] }
     } finally {
       isLoadingMessages.value = false
     }

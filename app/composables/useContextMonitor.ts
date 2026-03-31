@@ -234,6 +234,28 @@ export function useContextMonitor() {
       .sort((a, b) => b.count - a.count)
   })
 
+  /**
+   * Update metrics with specific token usage (overwrites current)
+   */
+  function updateTokenUsage(tokens: { input: number; output: number; cacheCreation?: number; cacheRead?: number }) {
+    metrics.value.tokens = { 
+      input: tokens.input, 
+      output: tokens.output, 
+      cached: tokens.cacheRead || 0 
+    }
+    
+    // Calculate context usage (reference logic: input + cacheCreation + cacheRead)
+    const total = metrics.value.contextWindow.total || 200000
+    const used = tokens.input + (tokens.cacheCreation || 0) + (tokens.cacheRead || 0)
+    const percentage = Math.min(100, (used / total) * 100)
+    
+    metrics.value.contextWindow = {
+      used,
+      total,
+      percentage: Math.round(percentage * 100) / 100
+    }
+  }
+
   return {
     metrics,
     isMonitoring,
@@ -251,6 +273,7 @@ export function useContextMonitor() {
     startMonitoring,
     stopMonitoring,
     resetMetrics,
+    updateTokenUsage,
     handleWebSocketEvent,
   }
 }

@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
       messages: result.messages,
       total: result.total,
       hasMore: result.hasMore,
+      tokenUsage: result.tokenUsage,
       projectName,
       sessionId
     }

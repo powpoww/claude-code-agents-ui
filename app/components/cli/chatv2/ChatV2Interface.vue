@@ -226,11 +226,17 @@ async function handleClaudeCodeSessionSelected(payload: { projectName: string; s
   // Start loading with minimum duration
   isLoadingHistoryWithDelay.value = true
 
-  // Load messages with minimum 500ms delay for smooth UX
-  await Promise.all([
+  // Load messages with minimum 1000ms delay for smooth UX
+  const [historyResult] = await Promise.all([
     fetchClaudeCodeMessages(payload.projectName, payload.sessionId, 100, 0),
-    delay(500)
+    delay(1000)
   ])
+
+  if (historyResult?.tokenUsage) {
+    contextMonitor.updateTokenUsage(historyResult.tokenUsage)
+  } else {
+    contextMonitor.resetMetrics()
+  }
 
   // End loading state
   isLoadingHistoryWithDelay.value = false
@@ -248,6 +254,7 @@ function handleSelectionCleared() {
   currentSessionSummary.value = ''
   currentProjectDisplayName.value = ''
   isContinuingHistory.value = false
+  contextMonitor.resetMetrics()
 }
 
 // Handle new chat - switch to live mode without affecting sidebar
@@ -263,6 +270,7 @@ function handleNewChat(payload?: { workingDir?: string; projectDisplayName?: str
   isContinuingHistory.value = false
   // Clear the current session so the user can start fresh
   sessionStore.setActiveSession(null)
+  contextMonitor.resetMetrics()
   
   // Clear history selection
   history.selectedSession.value = null
@@ -820,7 +828,7 @@ function handleOpenFile(filePath: string) {
 
         <!-- Floating-style Controls (Thinking + Context) -->
         <div 
-          v-if="isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)"
+          v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
           class="absolute bottom-0 left-0 right-0 flex justify-center items-center gap-4 py-4 z-10"
           style="background: linear-gradient(to top, var(--surface-base) 20%, transparent 100%); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
         >
@@ -888,7 +896,7 @@ function handleOpenFile(filePath: string) {
 
       <!-- Input -->
       <div 
-        v-if="isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)"
+        v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
         class="shrink-0 border-t" 
         style="border-color: var(--border-subtle); background: var(--surface-base);"
       >

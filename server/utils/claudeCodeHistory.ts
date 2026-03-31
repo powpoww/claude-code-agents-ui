@@ -42,6 +42,12 @@ export interface ClaudeCodeMessage {
   toolName?: string
   toolInput?: unknown
   toolUseResult?: unknown
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  }
   [key: string]: unknown
 }
 
@@ -471,6 +477,12 @@ export async function getClaudeCodeSessionMessages(
   messages: ClaudeCodeMessage[]
   total: number
   hasMore: boolean
+  tokenUsage?: {
+    input: number
+    output: number
+    cacheCreation: number
+    cacheRead: number
+  }
 }> {
   const projectDir = join(getClaudeProjectsDir(), projectName)
 
@@ -512,11 +524,30 @@ export async function getClaudeCodeSessionMessages(
       new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
     )
 
+    // Extract latest token usage from assistant messages (scan from end)
+    let tokenUsage: any = undefined
+    for (let i = sortedMessages.length - 1; i >= 0; i--) {
+      const msg = sortedMessages[i]
+      // Use msg.message.role or entry.role/type depending on JSONL format
+      const role = msg.role || (msg.message as any)?.role || msg.type
+      const usage = msg.usage || (msg.message as any)?.usage
+      
+      if (role === 'assistant' && usage) {
+        tokenUsage = {
+          input: usage.input_tokens || 0,
+          output: usage.output_tokens || 0,
+          cacheCreation: usage.cache_creation_input_tokens || 0,
+          cacheRead: usage.cache_read_input_tokens || 0
+        }
+        break
+      }
+    }
+
     const total = sortedMessages.length
 
     // If no limit, return all
     if (limit === null) {
-      return { messages: sortedMessages, total, hasMore: false }
+      return { messages: sortedMessages, total, hasMore: false, tokenUsage }
     }
 
     // Apply pagination - get most recent messages
@@ -525,7 +556,7 @@ export async function getClaudeCodeSessionMessages(
     const paginatedMessages = sortedMessages.slice(startIndex, endIndex)
     const hasMore = startIndex > 0
 
-    return { messages: paginatedMessages, total, hasMore }
+    return { messages: paginatedMessages, total, hasMore, tokenUsage }
   } catch (error: any) {
     console.error(`Error reading messages for session ${sessionId}:`, error)
     return { messages: [], total: 0, hasMore: false }
