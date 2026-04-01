@@ -601,11 +601,26 @@ function handleOpenFile(filePath: string) {
 
 <template>
   <div class="flex-1 flex min-h-0">
+    <!-- Mobile backdrop -->
+    <Transition name="fade">
+      <div
+        v-if="isMobileScreen && mobileSidebarOpen"
+        class="fixed inset-0 bg-black/40 z-40"
+        @click="mobileSidebarOpen = false"
+      />
+    </Transition>
+
     <!-- Left Sidebar - Claude Code History -->
     <div
-      class="shrink-0 flex flex-col border-r transition-all duration-300"
+      :class="[
+        'flex flex-col border-r transition-all duration-300',
+        isMobileScreen ? 'fixed inset-y-0 left-0 z-50' : 'shrink-0',
+      ]"
       :style="{
-        width: sidebarWidth,
+        width: isMobileScreen ? '280px' : sidebarWidth,
+        transform: isMobileScreen
+          ? (mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
+          : undefined,
         borderColor: 'var(--border-subtle)',
         background: 'var(--surface-base)',
       }"
