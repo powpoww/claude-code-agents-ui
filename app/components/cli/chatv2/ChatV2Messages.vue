@@ -112,7 +112,7 @@ function handleOpenFile(filePath: string) {
           </svg>
         </div>
 
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 overflow-wrap-anywhere">
           <!-- Claude Header -->
           <div class="flex items-center gap-2 mb-1.5 md:mb-2">
             <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>

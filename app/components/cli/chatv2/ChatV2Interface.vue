@@ -92,8 +92,8 @@ function onContextSidebarDragEnd() {
 // Responsive sidebar width based on window size
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 const isSmallScreen = computed(() => windowWidth.value < 1024)
-const isMobileScreen = computed(() => windowWidth.value < 768)
-const isHeaderTwoRow = computed(() => windowWidth.value < 640)
+const isMobileScreen = computed(() => false)
+const isHeaderTwoRow = computed(() => false)
 
 function updateWidth() {
   windowWidth.value = window.innerWidth
@@ -136,7 +136,7 @@ const leftDragStartX = ref(0)
 const leftDragStartWidth = ref(0)
 
 function onLeftSidebarDragStart(e: MouseEvent) {
-  if (isMobileScreen.value || sidebarCollapsed.value) return
+  if (sidebarCollapsed.value) return
   isDraggingLeftSidebar.value = true
   leftDragStartX.value = e.clientX
   leftDragStartWidth.value = leftSidebarWidth.value
@@ -620,7 +620,7 @@ async function handleSessionRenamed(payload: { projectName: string; sessionId: s
     toast.add({
       title: 'Session renamed',
       color: 'success',
-      timeout: 2000
+      duration: 2000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to rename session:', e)
@@ -646,7 +646,7 @@ async function handleSessionDeleted(payload: { projectName: string; sessionId: s
     toast.add({
       title: 'Session deleted',
       color: 'success',
-      timeout: 2000
+      duration: 2000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to delete session:', e)
@@ -671,27 +671,14 @@ function handleOpenFile(filePath: string) {
 
 <template>
   <div class="flex-1 flex min-h-0">
-    <!-- Mobile backdrop -->
-    <Transition name="fade">
-      <div
-        v-if="isMobileScreen && mobileSidebarOpen"
-        class="fixed inset-0 bg-black/40 z-40"
-        @click="mobileSidebarOpen = false"
-      />
-    </Transition>
-
     <!-- Left Sidebar - Claude Code History -->
     <div
       :class="[
-        'flex flex-col border-r relative overflow-hidden',
-        isMobileScreen ? 'fixed inset-y-0 left-0 z-50 transition-transform duration-300' : 'shrink-0',
-        !isMobileScreen && !isDraggingLeftSidebar ? 'transition-[width] duration-300' : '',
+        'flex flex-col border-r relative overflow-hidden shrink-0',
+        !isDraggingLeftSidebar ? 'transition-[width] duration-300' : '',
       ]"
       :style="{
-        width: isMobileScreen ? '280px' : sidebarWidth,
-        transform: isMobileScreen
-          ? (mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
-          : undefined,
+        width: sidebarWidth,
         borderColor: 'var(--border-subtle)',
         background: 'var(--surface-base)',
         userSelect: isDraggingLeftSidebar ? 'none' : undefined,
@@ -699,7 +686,7 @@ function handleOpenFile(filePath: string) {
     >
       <!-- Drag handle on right edge -->
       <div
-        v-if="!isMobileScreen && !sidebarCollapsed"
+        v-if="!sidebarCollapsed"
         class="absolute right-0 inset-y-0 w-1 cursor-col-resize z-10"
         :class="isDraggingLeftSidebar ? 'bg-accent/40' : 'hover:bg-accent/30'"
         @mousedown="onLeftSidebarDragStart"
@@ -726,28 +713,19 @@ function handleOpenFile(filePath: string) {
         class="shrink-0 border-b relative z-20"
         style="border-color: var(--border-subtle); background: var(--surface-base);"
       >
-        <div class="flex items-center justify-between px-3 md:px-4 min-h-[3.5rem] py-2">
+        <div class="flex items-center justify-between px-4 h-14">
           <div class="flex items-center gap-2 min-w-0 flex-1">
-          <!-- Hamburger - mobile only -->
-          <button
-            v-if="isMobileScreen"
-            class="shrink-0 p-1.5 rounded-lg mr-0.5"
-            style="color: var(--text-secondary);"
-            @click="mobileSidebarOpen = true"
-          >
-            <UIcon name="i-lucide-menu" class="size-5" />
-          </button>
           <!-- History Mode - Session Info -->
           <template v-if="viewMode === 'history'">
             <div class="flex flex-col justify-center min-w-0 py-0.5">
               <!-- Session Name -->
-              <span class="text-[12px] md:text-[13px] font-medium break-words max-w-full leading-tight" style="color: var(--text-primary);">
+              <span class="text-[13px] font-medium break-all max-w-full leading-tight" style="color: var(--text-primary);">
                 {{ currentSessionSummary || 'Session' }}
               </span>
               <!-- Folder Name -->
               <span
                 v-if="currentProjectDisplayName"
-                class="text-[9px] md:text-[10px] font-mono break-all leading-tight mt-0.5"
+                class="text-[9px] md:text-[10px] font-mono truncate leading-tight mt-0.5"
                 style="color: var(--text-tertiary);"
               >
                 {{ currentProjectDisplayName }}
@@ -757,58 +735,55 @@ function handleOpenFile(filePath: string) {
 
           <!-- Live Mode Indicators -->
           <template v-else>
-            <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <!-- Connection Status -->
               <div
                 v-if="isConnected"
-                class="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium"
+                class="flex items-center gap-2 px-2 py-1 rounded text-[11px] font-medium"
                 style="background: rgba(13, 188, 121, 0.1); color: #0dbc79;"
-                :title="isSmallScreen ? 'Connected' : ''"
               >
                 <div class="size-1.5 rounded-full animate-pulse" style="background: #0dbc79;" />
-                <span v-if="!isSmallScreen">Connected</span>
+                <span>Connected</span>
               </div>
               <div
                 v-else
-                class="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium"
+                class="flex items-center gap-2 px-2 py-1 rounded text-[11px] font-medium"
                 style="background: var(--surface-raised); color: var(--text-disabled);"
-                :title="isSmallScreen ? 'Disconnected' : ''"
               >
                 <div class="size-1.5 rounded-full" style="background: var(--text-disabled);" />
-                <span v-if="!isSmallScreen">Disconnected</span>
+                <span>Disconnected</span>
               </div>
 
               <!-- Streaming indicator -->
               <div
                 v-if="isStreaming"
-                class="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium"
+                class="flex items-center gap-2 px-2 py-1 rounded text-[11px] font-medium"
                 style="background: rgba(229, 169, 62, 0.1); color: var(--accent);"
               >
                 <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
-                <span v-if="!isSmallScreen">Generating...</span>
+                <span>Generating...</span>
               </div>
 
               <!-- Project/Folder indicator in live mode -->
               <div
                 v-if="localWorkingDir"
-                class="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium min-w-0"
+                class="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium min-w-0"
                 style="background: var(--surface-raised); color: var(--text-secondary);"
                 :title="localWorkingDir"
               >
                 <UIcon :name="currentProjectDisplayName ? 'i-lucide-folder-root' : 'i-lucide-folder'" class="size-3 shrink-0" />
-                <span class="break-all">{{ currentProjectDisplayName || localWorkingDir.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
+                <span class="truncate">{{ currentProjectDisplayName || localWorkingDir.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
               </div>
             </div>
           </template>
         </div>
 
-        <div class="hidden sm:flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
           <!-- Model Selector -->
           <ChatV2ModelSelector
             v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
             v-model="selectedModel"
             :options="MODEL_OPTIONS_CHAT"
-            class="scale-90 md:scale-100 origin-right"
           />
 
           <!-- Permission Mode Selector (only when viewing a specific chat session) -->
@@ -824,23 +799,6 @@ function handleOpenFile(filePath: string) {
           </span>
         </div>
         </div>
-
-        <!-- Row 2: model + permission controls — mobile only -->
-        <div
-          v-if="isHeaderTwoRow && ((viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat) || (viewMode === 'live' && currentSessionId))"
-          class="flex items-center gap-2 px-3 pb-2"
-        >
-          <ChatV2ModelSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
-            v-model="selectedModel"
-            :options="MODEL_OPTIONS_CHAT"
-          />
-          <ChatV2PermissionModeSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
-            v-model="selectedPermissionMode"
-            :options="permissionModeOptions"
-          />
-        </div>
       </div>
 
       <!-- Permission Banner -->
@@ -851,7 +809,7 @@ function handleOpenFile(filePath: string) {
       />
 
       <!-- Messages Area -->
-      <div class="flex-1 relative min-h-0 overflow-x-hidden">
+      <div class="flex-1 relative min-h-0 min-w-0 overflow-x-hidden">
         <div
           ref="messagesContainerRef"
           class="h-full overflow-y-auto overflow-x-hidden transition-opacity duration-200"
@@ -862,7 +820,7 @@ function handleOpenFile(filePath: string) {
           @scroll="handleMessagesScroll"
         >
           <!-- Content column - grows with available space -->
-          <div class="w-full max-w-7xl mx-auto px-4 py-4 space-y-4 min-h-full">
+          <div class="max-w-[1200px] mx-auto px-4 py-4 space-y-4 min-h-full min-w-0">
               <!-- Loading state for creating new session -->
             <div v-if="isCreatingSession" class="flex items-center justify-center h-full">
               <div class="text-center">
@@ -1070,13 +1028,12 @@ function handleOpenFile(filePath: string) {
           :style="{
             background: 'var(--surface-overlay)',
             borderColor: 'var(--border-subtle)',
-            width: isMobileScreen ? '90vw' : `${contextSidebarWidth}px`,
+            width: `${contextSidebarWidth}px`,
             userSelect: isDraggingContextSidebar ? 'none' : undefined,
           }"
         >
           <!-- Drag handle -->
           <div
-            v-if="!isMobileScreen"
             class="absolute left-0 inset-y-0 w-1 cursor-col-resize z-10 group"
             :class="isDraggingContextSidebar ? 'bg-accent/40' : 'hover:bg-accent/30'"
             @mousedown="onContextSidebarDragStart"

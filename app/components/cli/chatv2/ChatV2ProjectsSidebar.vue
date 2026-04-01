@@ -296,7 +296,7 @@ function confirmDelete() {
             @click="handleNewChat"
           >
             <UIcon name="i-lucide-plus" class="size-3.5" />
-            {{ viewMode === 'sessions' ? 'New Chat in this folder' : 'New Chat' }}
+            New Chat
           </button>
           <button
             class="p-2 rounded-lg transition-all hover-bg flex items-center justify-center"
@@ -375,7 +375,7 @@ function confirmDelete() {
           <!-- Directory path -->
           <div
             v-if="project.path"
-            class="text-[10px] font-mono break-all mb-1 pl-5.5"
+            class="text-[10px] font-mono truncate mb-1 pl-5.5"
             style="color: var(--text-tertiary);"
             :title="project.path"
           >
@@ -458,7 +458,7 @@ function confirmDelete() {
                 <!-- Normal title display -->
                 <div
                   v-else
-                  class="text-[12px] font-medium break-words mb-1"
+                  class="text-[12px] font-medium truncate mb-1"
                   style="color: var(--text-primary);"
                 >
                   {{ session.summary || 'Session' }}
