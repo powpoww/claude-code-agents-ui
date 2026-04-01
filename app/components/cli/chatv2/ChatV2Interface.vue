@@ -70,20 +70,23 @@ function updateWidth() {
 
 onMounted(() => {
   window.addEventListener('resize', updateWidth)
-  // Auto-collapse sidebar on small laptop screens
-  if (windowWidth.value < 1100) {
-    sidebarCollapsed.value = true
-  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateWidth)
 })
 
+watch(isMobileScreen, (isMobile) => {
+  if (!isMobile) {
+    mobileSidebarOpen.value = false
+  }
+})
+
 const sidebarWidth = computed(() => {
   if (sidebarCollapsed.value) return '56px'
-  if (windowWidth.value < 1280) return '260px' // Smaller sidebar for laptops
-  return '320px' // Standard width for desktops
+  if (windowWidth.value < 1024) return '220px'
+  if (windowWidth.value < 1280) return '260px'
+  return '320px'
 })
 
 // Track the working directory for the current session (defaults to prop)
