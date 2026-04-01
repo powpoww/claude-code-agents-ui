@@ -777,13 +777,14 @@ function handleOpenFile(filePath: string) {
       <div class="flex-1 relative min-h-0">
         <div
           ref="messagesContainerRef"
-          class="h-full overflow-y-auto px-2 py-3 md:p-4 space-y-4 transition-opacity duration-200"
-          :style="{ 
+          class="h-full overflow-y-auto transition-opacity duration-200"
+          :style="{
             background: 'var(--surface-base)',
             opacity: isInitialScroll ? 0 : 1
           }"
           @scroll="handleMessagesScroll"
         >
+          <div class="max-w-[800px] mx-auto w-full px-4 py-4 space-y-4">
           <!-- Loading state for creating new session -->
           <div v-if="isCreatingSession" class="flex items-center justify-center h-full">
             <div class="text-center">
@@ -874,6 +875,7 @@ function handleOpenFile(filePath: string) {
             <!-- Spacer to ensure last messages can scroll above the blurry toggle -->
             <div class="h-12 shrink-0" />
           </template>
+          </div>
         </div>
 
         <!-- Floating-style Controls (Thinking + Context) -->
