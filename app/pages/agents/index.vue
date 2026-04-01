@@ -30,6 +30,25 @@ const filteredAgents = computed(() => {
   )
 })
 
+const groupedAgents = computed(() => {
+  const groups: Record<string, typeof agents.value> = {}
+  for (const agent of filteredAgents.value) {
+    const key = agent.directory || ''
+    ;(groups[key] ??= []).push(agent)
+  }
+  // Named folders alphabetically, root ('') last
+  return Object.entries(groups).sort(([a], [b]) => {
+    if (!a) return 1
+    if (!b) return -1
+    return a.localeCompare(b)
+  })
+})
+
+const hasGroups = computed(() =>
+  groupedAgents.value.length > 1 ||
+  (groupedAgents.value.length === 1 && groupedAgents.value[0]?.[0] !== '')
+)
+
 async function useTemplate(templateId: string) {
   const template = agentTemplates.find(t => t.id === templateId)
   if (!template) return
@@ -86,59 +105,76 @@ async function useTemplate(templateId: string) {
         <SkeletonCard v-for="i in 6" :key="i" />
       </div>
 
-      <!-- Agent card grid -->
-      <div v-else-if="filteredAgents.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        <NuxtLink
-          v-for="(agent, idx) in filteredAgents"
-          :key="agent.slug"
-          :to="`/agents/${agent.slug}`"
-          class="rounded-xl p-4 focus-ring hover-lift border border-subtle relative overflow-hidden group bg-card"
-        >
-          <!-- Color accent bar — thicker -->
-          <div
-            class="absolute inset-x-0 top-0 h-[4px] transition-opacity duration-200"
-            :style="{ background: getAgentColor(agent.frontmatter.color) }"
-          />
-
-          <!-- Hover glow in agent color -->
-          <div
-            class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            :style="{ background: 'radial-gradient(ellipse at top, ' + getAgentColor(agent.frontmatter.color) + '08 0%, transparent 60%)' }"
-          />
-
-          <!-- Header: icon + name + model -->
-          <div class="flex items-center gap-3 mb-2 relative">
-            <div
-              class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
-              :style="{ background: getAgentColor(agent.frontmatter.color) + '18', border: '1px solid ' + getAgentColor(agent.frontmatter.color) + '25' }"
-            >
-              <UIcon name="i-lucide-cpu" class="size-3.5" :style="{ color: getAgentColor(agent.frontmatter.color) }" />
-            </div>
-            <span class="text-[13px] font-medium truncate flex-1">
-              {{ agent.frontmatter.name }}
+      <!-- Agent groups -->
+      <div v-else-if="filteredAgents.length" class="space-y-6">
+        <div v-for="([directory, groupAgents]) in groupedAgents" :key="directory || '__root__'">
+          <!-- Section header — only shown when there are multiple groups -->
+          <div v-if="hasGroups" class="flex items-center gap-2 mb-3">
+            <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" style="color: var(--text-meta);" />
+            <span class="text-[11px] font-semibold uppercase tracking-widest" style="color: var(--text-meta);">
+              {{ directory || 'General' }}
             </span>
-            <span
-              v-if="agent.frontmatter.model"
-              class="text-[10px] font-mono font-medium px-1.5 py-px rounded-full shrink-0"
-              :class="[getModelBadgeClasses(agent.frontmatter.model).bg, getModelBadgeClasses(agent.frontmatter.model).text]"
-            >
-              {{ agent.frontmatter.model }}
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full" style="background: var(--surface-raised); color: var(--text-disabled);">
+              {{ groupAgents.length }}
             </span>
+            <div class="flex-1 h-px" style="background: var(--border-subtle);" />
           </div>
 
-          <!-- Description -->
-          <p v-if="agent.frontmatter.description" class="text-[12px] leading-relaxed line-clamp-2 text-label relative">
-            {{ agent.frontmatter.description }}
-          </p>
+          <!-- Card grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <NuxtLink
+              v-for="agent in groupAgents"
+              :key="agent.slug"
+              :to="`/agents/${agent.slug}`"
+              class="rounded-xl p-4 focus-ring hover-lift border border-subtle relative overflow-hidden group bg-card"
+            >
+              <!-- Color accent bar -->
+              <div
+                class="absolute inset-x-0 top-0 h-[4px] transition-opacity duration-200"
+                :style="{ background: getAgentColor(agent.frontmatter.color) }"
+              />
 
-          <!-- Skill count badge -->
-          <div v-if="skillCounts[agent.slug]" class="mt-3 pt-3 relative" style="border-top: 1px solid var(--border-subtle);">
-            <span class="text-[10px] text-meta flex items-center gap-1.5">
-              <UIcon name="i-lucide-sparkles" class="size-3" style="color: var(--accent);" />
-              {{ skillCounts[agent.slug] }} skill{{ skillCounts[agent.slug] === 1 ? '' : 's' }}
-            </span>
+              <!-- Hover glow in agent color -->
+              <div
+                class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                :style="{ background: 'radial-gradient(ellipse at top, ' + getAgentColor(agent.frontmatter.color) + '08 0%, transparent 60%)' }"
+              />
+
+              <!-- Header: icon + name + model -->
+              <div class="flex items-center gap-3 mb-2 relative">
+                <div
+                  class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
+                  :style="{ background: getAgentColor(agent.frontmatter.color) + '18', border: '1px solid ' + getAgentColor(agent.frontmatter.color) + '25' }"
+                >
+                  <UIcon name="i-lucide-cpu" class="size-3.5" :style="{ color: getAgentColor(agent.frontmatter.color) }" />
+                </div>
+                <span class="text-[13px] font-medium truncate flex-1">
+                  {{ agent.frontmatter.name }}
+                </span>
+                <span
+                  v-if="agent.frontmatter.model"
+                  class="text-[10px] font-mono font-medium px-1.5 py-px rounded-full shrink-0"
+                  :class="[getModelBadgeClasses(agent.frontmatter.model).bg, getModelBadgeClasses(agent.frontmatter.model).text]"
+                >
+                  {{ agent.frontmatter.model }}
+                </span>
+              </div>
+
+              <!-- Description -->
+              <p v-if="agent.frontmatter.description" class="text-[12px] leading-relaxed line-clamp-2 text-label relative">
+                {{ agent.frontmatter.description }}
+              </p>
+
+              <!-- Skill count badge -->
+              <div v-if="skillCounts[agent.slug]" class="mt-3 pt-3 relative" style="border-top: 1px solid var(--border-subtle);">
+                <span class="text-[10px] text-meta flex items-center gap-1.5">
+                  <UIcon name="i-lucide-sparkles" class="size-3" style="color: var(--accent);" />
+                  {{ skillCounts[agent.slug] }} skill{{ skillCounts[agent.slug] === 1 ? '' : 's' }}
+                </span>
+              </div>
+            </NuxtLink>
           </div>
-        </NuxtLink>
+        </div>
       </div>
 
       <!-- Empty state: search miss -->
