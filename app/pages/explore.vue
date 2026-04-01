@@ -563,7 +563,7 @@ function scrollToMarketplace(name: string) {
           />
         </div>
 
-        <div v-else-if="importedAgentRepos.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div v-else-if="importedAgentRepos.length" class="space-y-8">
           <ImportedRepoCard
             v-for="entry in importedAgentRepos"
             :key="`${entry.owner}/${entry.repo}`"
@@ -800,7 +800,7 @@ function scrollToMarketplace(name: string) {
           />
         </div>
 
-        <div v-else-if="importedSkillRepos.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div v-else-if="importedSkillRepos.length" class="space-y-8">
           <ImportedRepoCard
             v-for="entry in importedSkillRepos"
             :key="`${entry.owner}/${entry.repo}`"
