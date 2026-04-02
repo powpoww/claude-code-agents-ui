@@ -337,7 +337,8 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto'): Promise<void> {
       }
       messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
 
-      // Use a small timeout to handle layout shifts from async rendering (images, code blocks)
+      // Wait for layout shifts from async rendering (markdown, code blocks, images)
+      // 300ms gives enough time for most content to fully render and calculate heights
       setTimeout(() => {
         if (messagesContainerRef.value) {
           messagesContainerRef.value.scrollTo({
@@ -345,10 +346,10 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto'): Promise<void> {
             behavior
           })
         }
-        // Finished scrolling - make container visible if it was hidden
+        // Make container visible — no CSS transition so it appears instantly (no flash)
         isInitialScroll.value = false
         resolve()
-      }, 150)
+      }, 300)
     })
   })
 }
@@ -363,15 +364,13 @@ async function handleClaudeCodeSessionSelected(payload: { projectName: string; s
   currentProjectDisplayName.value = payload.projectDisplayName
   isContinuingHistory.value = false  // Reset when selecting a new history session
   isInitialScroll.value = true // Set initial scroll flag
+  isLoadingHistoryWithDelay.value = true // Show spinner before any awaits to avoid blank gap
 
   // Update URL only if not already there (avoids redundant navigation when triggered by route watcher)
   const targetPath = `/cli/project/${encodeURIComponent(payload.projectName)}/session/${encodeURIComponent(payload.sessionId)}`
   if (route.path !== targetPath) {
     await navigateTo(targetPath, { replace: false })
   }
-
-  // Start loading with minimum duration
-  isLoadingHistoryWithDelay.value = true
 
   // Load messages with minimum 1000ms delay for smooth UX
   const [historyResult] = await Promise.all([
@@ -948,7 +947,7 @@ function handleOpenFile(filePath: string) {
       <div class="flex-1 relative min-h-0 min-w-0 overflow-x-hidden">
         <div
           ref="messagesContainerRef"
-          class="h-full overflow-y-auto overflow-x-hidden transition-opacity duration-200"
+          class="h-full overflow-y-auto overflow-x-hidden"
           :style="{
             background: 'var(--surface-base)',
             opacity: isInitialScroll ? 0 : 1
