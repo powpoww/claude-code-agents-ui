@@ -532,7 +532,7 @@ export type ChatV2WebSocketMessage =
       provider?: string
       permissionMode?: PermissionMode
       model?: string
-      thinkingEnabled?: boolean
+      effort?: EffortLevel
       images?: string[]
     }
   | { type: 'abort'; sessionId: string }
@@ -545,6 +545,10 @@ export type ChatV2WebSocketEvent =
   | { type: 'disconnected' }
   | { type: 'permission_expired'; permissionId: string }
 
+// ── Effort Level ────────────────────────────────────────
+
+export type EffortLevel = 'low' | 'medium' | 'high' | 'max'
+
 // ── Provider Types ──────────────────────────────────────
 
 export interface ProviderQueryOptions {
@@ -555,7 +559,7 @@ export interface ProviderQueryOptions {
   workingDir?: string
   model?: string
   permissionMode?: PermissionMode
-  thinkingEnabled?: boolean
+  effort?: EffortLevel
   images?: string[]
 }
 

@@ -8,6 +8,7 @@ import type {
   ChatV2WebSocketEvent,
   NormalizedMessage,
   PermissionMode,
+  EffortLevel,
 } from '~/types'
 import { useStreamingBuffer } from './useStreamingBuffer'
 import { usePermissions } from './usePermissions'
@@ -309,7 +310,7 @@ export function useChatV2Handler() {
       provider?: string
       permissionMode?: PermissionMode
       model?: string
-      thinkingEnabled?: boolean
+      effort?: EffortLevel
       images?: string[]
     } = {}
   ): boolean {
@@ -345,7 +346,7 @@ export function useChatV2Handler() {
       provider?: string
       permissionMode?: PermissionMode
       model?: string
-      thinkingEnabled?: boolean
+      effort?: EffortLevel
       images?: string[]
     } = {}
   ): boolean {
@@ -362,7 +363,7 @@ export function useChatV2Handler() {
       provider: options.provider,
       permissionMode: options.permissionMode || permissions.permissionMode.value,
       model: options.model,
-      thinkingEnabled: options.thinkingEnabled,
+      effort: options.effort,
       images: options.images,
     }
 

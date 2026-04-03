@@ -95,9 +95,9 @@ export const claudeProvider: ProviderAdapter = {
         sdkOptions.model = options.model
       }
 
-      // Add thinking mode if enabled
-      if (options.thinkingEnabled) {
-        sdkOptions.model = { type: 'thinking', enabled: true }
+      // Add effort level (controls thinking depth)
+      if (options.effort) {
+        sdkOptions.effort = options.effort
       }
 
       console.log('[ClaudeProvider] Starting query with options:', {
