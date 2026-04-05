@@ -27,7 +27,7 @@ function testServer(name: string) {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto custom-scrollbar flex flex-col">
+  <div class="flex flex-col">
     <PageHeader title="MCP Servers">
       <template #trailing>
         <span class="font-mono text-[12px] text-meta mr-4">{{ servers.length }}</span>
@@ -48,8 +48,10 @@ function testServer(name: string) {
         <span class="text-[12px] text-error">{{ error }}</span>
       </div>
 
-      <div v-if="loading" class="space-y-2">
-        <SkeletonRow v-for="i in 3" :key="i" />
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-for="i in 4" :key="i" class="p-4 rounded-xl border border-subtle bg-card opacity-60">
+          <SkeletonRow />
+        </div>
       </div>
       <div v-else-if="servers.length === 0" class="flex flex-col items-center justify-center py-12 border border-dashed rounded-xl border-subtle">
         <UIcon name="i-lucide-server" class="size-8 text-meta mb-3" />

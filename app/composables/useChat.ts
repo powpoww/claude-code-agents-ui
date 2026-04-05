@@ -9,6 +9,7 @@ export function useChat() {
 
   const isPanelOpen = useState<boolean>('chat-panel-open', () => false)
   const activeAgent = useState<{ slug: string; name: string; color?: string } | null>('chat-active-agent', () => null)
+  const selectedOutputStyleId = useState('chat-active-output-style-id', () => 'default')
   const pendingInput = useState<string>('chat-pending-input', () => '')
 
   let abortController: AbortController | null = null
@@ -74,6 +75,7 @@ export function useChat() {
           sessionId: sessionId.value,
           ...(invoke ? { invoke } : {}),
           ...(activeAgent.value ? { agentSlug: activeAgent.value.slug } : {}),
+          outputStyleId: selectedOutputStyleId.value,
           ...(workingDir.value ? { projectDir: workingDir.value } : {}),
         },
         signal: abortController.signal,

@@ -1,11 +1,51 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { getClaudeDir, resolveClaudePath } from '../utils/claudeDir'
+import { DEFAULT_OUTPUT_STYLES } from '../utils/defaultOutputStyles'
+import { parseFrontmatter } from '../utils/frontmatter'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+}
+
+async function getOutputStyleContent(id: string, projectDir?: string): Promise<{ content: string; keepCodingInstructions: boolean } | null> {
+  // 1. Check built-in
+  const defaultStyle = DEFAULT_OUTPUT_STYLES.find(s => s.id === id)
+  if (defaultStyle) {
+    return { 
+      content: id === 'default' ? '' : defaultStyle.content, 
+      keepCodingInstructions: defaultStyle.keepCodingInstructions 
+    }
+  }
+
+  // 2. Check global files
+  const globalPath = resolveClaudePath('output-styles', `${id}.md`)
+  if (existsSync(globalPath)) {
+    const raw = readFileSync(globalPath, 'utf-8')
+    const { frontmatter, body } = parseFrontmatter<any>(raw)
+    return { 
+      content: body, 
+      keepCodingInstructions: frontmatter['keep-coding-instructions'] === true || frontmatter.keepCodingInstructions === true
+    }
+  }
+
+  // 3. Check project files
+  if (projectDir) {
+    const projectPath = join(projectDir, '.claude', 'output-styles', `${id}.md`)
+    if (existsSync(projectPath)) {
+      const raw = readFileSync(projectPath, 'utf-8')
+      const { frontmatter, body } = parseFrontmatter<any>(raw)
+      return { 
+        content: body, 
+        keepCodingInstructions: frontmatter['keep-coding-instructions'] === true || frontmatter.keepCodingInstructions === true
+      }
+    }
+  }
+
+  return null
 }
 
 function defaultManagerPrompt(claudeDir: string): string {
@@ -38,7 +78,13 @@ You can create, read, update, and delete any of these files. You can also:
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ messages: ChatMessage[]; sessionId?: string; agentSlug?: string; projectDir?: string }>(event)
+  const body = await readBody<{ 
+    messages: ChatMessage[]; 
+    sessionId?: string; 
+    agentSlug?: string; 
+    projectDir?: string;
+    outputStyleId?: string;
+  }>(event)
 
   if (!body.messages?.length) {
     throw createError({ statusCode: 400, message: 'messages is required' })
@@ -69,6 +115,20 @@ export default defineEventHandler(async (event) => {
     systemAppend = defaultManagerPrompt(claudeDir)
   }
 
+  // Handle Output Style
+  let systemPreset: 'claude_code' | 'none' = 'claude_code'
+  if (body.outputStyleId) {
+    const style = await getOutputStyleContent(body.outputStyleId, body.projectDir)
+    if (style) {
+      if (style.content) {
+        systemAppend += `\n\nAdditional style/behavioral instructions:\n${style.content}`
+      }
+      if (style.keepCodingInstructions === false) {
+        systemPreset = 'none'
+      }
+    }
+  }
+
   // Set up SSE headers
   setResponseHeaders(event, {
     'Content-Type': 'text/event-stream',
@@ -95,7 +155,7 @@ export default defineEventHandler(async (event) => {
         includePartialMessages: true,
         systemPrompt: {
           type: 'preset',
-          preset: 'claude_code',
+          preset: systemPreset,
           append: systemAppend,
         },
         ...(sessionId ? { resume: sessionId } : {}),

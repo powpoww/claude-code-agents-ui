@@ -10,11 +10,23 @@ const { fetchAll: fetchAgents } = useAgents()
 const { fetchAll: fetchCommands } = useCommands()
 const { fetchAll: fetchSkills } = useSkills()
 const { fetchAll: fetchPlugins } = usePlugins()
+const { styles: outputStyles, fetchStyles: fetchOutputStyles } = useOutputStyles()
+
+const selectedOutputStyleId = useState('chat-active-output-style-id', () => 'default')
+const activeOutputStyle = computed({
+  get: () => outputStyles.value.find(s => s.id === selectedOutputStyleId.value) || { id: 'default', name: 'Default' },
+  set: (val) => { selectedOutputStyleId.value = val.id }
+})
 
 const input = ref('')
 const inputRef = ref<{ focus: () => void; resetHeight: () => void } | null>(null)
 const messagesContainer = ref<HTMLElement | null>(null)
 const streamingDots = ref(0)
+const showStyleDropdown = ref(false)
+
+onMounted(async () => {
+  await fetchOutputStyles()
+})
 
 let dotsInterval: ReturnType<typeof setInterval> | null = null
 watch(isStreaming, (val) => {
@@ -134,7 +146,43 @@ function handleQuickAction(prompt: string) {
               <span class="text-[14px] font-semibold tracking-tight" style="color: var(--text-primary); font-family: var(--font-display);">Claude</span>
               <span class="text-[9px] font-mono tracking-widest uppercase px-1.5 py-px rounded-full transition-all duration-300" :style="{ background: isStreaming ? 'var(--accent-muted)' : 'var(--badge-subtle-bg)', color: isStreaming ? 'var(--accent)' : 'var(--text-disabled)' }">{{ statusText }}</span>
             </div>
-            <span class="text-[10px] font-mono" style="color: var(--text-disabled);">{{ activeAgent ? activeAgent.name : 'Agent Manager' }}</span>
+            <!-- Style Selector -->
+            <div class="relative">
+              <button 
+                class="flex items-center gap-1 text-[10px] font-mono hover:text-accent transition-colors"
+                style="color: var(--text-disabled);"
+                @click="showStyleDropdown = !showStyleDropdown"
+              >
+                <UIcon name="i-lucide-palette" class="size-3" />
+                <span>{{ activeOutputStyle?.name || 'Default' }}</span>
+                <UIcon name="i-lucide-chevron-down" class="size-2.5" />
+              </button>
+              
+              <div 
+                v-if="showStyleDropdown" 
+                class="absolute left-0 top-full mt-1 z-50 w-48 rounded-lg shadow-xl py-1 border border-subtle overflow-hidden"
+                style="background: var(--surface-overlay);"
+              >
+                <div class="px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-meta border-b border-subtle mb-1">
+                  Output Mode
+                </div>
+                <div class="max-h-60 overflow-y-auto custom-scrollbar">
+                  <button
+                    v-for="style in outputStyles"
+                    :key="style.id"
+                    class="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover-bg"
+                    :class="{ 'text-accent bg-accent-muted': activeOutputStyle?.id === style.id }"
+                    @click="() => { activeOutputStyle = { id: style.id, name: style.name }; showStyleDropdown = false }"
+                  >
+                    <UIcon :name="!style.path ? 'i-lucide-shield' : 'i-lucide-file-text'" class="size-3" />
+                    <div class="flex-1 min-w-0">
+                      <div class="text-[11px] font-medium truncate">{{ style.name }}</div>
+                      <div class="text-[9px] text-meta truncate">{{ style.description }}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <button v-if="messages.length" class="p-1.5 rounded-lg transition-all hover-bg" style="color: var(--text-disabled);" title="New conversation" @click="() => { clearChat(); clearAgent() }">
             <UIcon name="i-lucide-rotate-ccw" class="size-3.5" />

@@ -237,8 +237,6 @@ const isLiveChat = ref(false)
 // Track if we're continuing a history session (showing history + new messages)
 const isContinuingHistory = ref(false)
 
-
-
 // Local loading state with minimum duration for smooth UX
 const isLoadingHistoryWithDelay = ref(false)
 const isInitialScroll = ref(false)
@@ -264,6 +262,9 @@ const selectedPermissionMode = ref<PermissionMode>('default')
 
 // Model selector — options and default come from the shared model registry
 const selectedModel = ref<string>(DEFAULT_MODEL)
+
+// Output style selector
+const selectedOutputStyleId = ref<string>('')
 
 // Sync model selection with historical session if available
 watch(() => history.selectedSession.value, (newSession) => {
@@ -301,7 +302,7 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
   // If viewing Claude Code history
   if (viewMode.value === 'history') {
     const historyMessages = convertClaudeCodeMessages(claudeCodeMessages.value)
-    
+
     // Always check for live messages if we have a session ID
     if (liveSessionId) {
       const liveMessages = sessionStore.getMessages(liveSessionId)
@@ -311,7 +312,7 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
         return [...historyMessages, ...newMessages]
       }
     }
-    
+
     return historyMessages
   }
 
@@ -907,6 +908,7 @@ function sendRegularMessage(text: string, images: string[]) {
       permissionMode: selectedPermissionMode.value,
       model: selectedModel.value,
       effort: effortLevel.value,
+      outputStyleId: selectedOutputStyleId.value,
       images,
     })
     return
@@ -918,6 +920,7 @@ function sendRegularMessage(text: string, images: string[]) {
     permissionMode: selectedPermissionMode.value,
     model: selectedModel.value,
     effort: effortLevel.value,
+    outputStyleId: selectedOutputStyleId.value,
     images,
   })
 }

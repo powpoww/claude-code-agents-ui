@@ -7,6 +7,7 @@ const { fetchAll: fetchPlugins, plugins } = usePlugins()
 const { fetchAll: fetchSkills, skills } = useSkills()
 const { fetchAll: fetchWorkflows, workflows } = useWorkflows()
 const { fetchServers, servers: mcpServers } = useMCP()
+const { styles, fetchStyles } = useOutputStyles()
 
 const initialized = ref(false)
 const showSearch = ref(false)
@@ -115,6 +116,7 @@ const navLinks = [
   { label: 'Skills', icon: 'i-lucide-sparkles', to: '/skills' },
   { label: 'Plugins', icon: 'i-lucide-puzzle', to: '/plugins' },
   { label: 'MCP Servers', icon: 'i-lucide-server', to: '/mcp' },
+  { label: 'Output Styles', icon: 'i-lucide-palette', to: '/output-styles' },
 ]
 
 const navSecondary = [
@@ -409,11 +411,11 @@ function badgeFor(to: string) {
       </aside>
 
       <!-- Main content -->
-      <main class="flex-1 min-w-0 h-full overflow-y-auto" style="background: var(--surface-base);">
+      <main class="flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar" style="background: var(--surface-base); scrollbar-gutter: stable;">
         <!-- Setup wizard when directory doesn't exist -->
         <SetupWizard
           v-if="initialized && !claudeDirExists"
-          @complete="async () => { await loadConfig(); await Promise.all([fetchAgents(), fetchCommands(), fetchPlugins(), fetchSkills()]) }"
+          @complete="async () => { await loadConfig(); await Promise.all([fetchAgents(), fetchCommands(), fetchPlugins(), fetchSkills(), fetchWorkflows(), fetchServers(), fetchStyles()]) }"
         />
 
         <div v-show="initialized && claudeDirExists" class="h-full">

@@ -75,14 +75,16 @@ function handleFileClick() {
 
 // Handle permission response
 function handlePermissionAllow(remember = false) {
-  if (props.message.permissionRequest) {
-    emit('permissionRespond', props.message.permissionRequest.id, 'allow', remember)
+  const permId = props.message.requestId || props.message.id
+  if (permId) {
+    emit('permissionRespond', permId, 'allow', remember)
   }
 }
 
 function handlePermissionDeny() {
-  if (props.message.permissionRequest) {
-    emit('permissionRespond', props.message.permissionRequest.id, 'deny', false)
+  const permId = props.message.requestId || props.message.id
+  if (permId) {
+    emit('permissionRespond', permId, 'deny', false)
   }
 }
 
@@ -756,7 +758,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
     </template>
 
     <!-- Permission Request -->
-    <template v-else-if="message.kind === 'permission_request' && message.permissionRequest">
+    <template v-else-if="message.kind === 'permission_request'">
       <div
         class="px-3 py-2 md:px-4 md:py-3 rounded-xl border-2"
         style="background: rgba(229, 169, 62, 0.05); border-color: var(--accent);"
@@ -769,14 +771,14 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
         </div>
 
         <p class="text-[11px] md:text-[12px] mb-3" style="color: var(--text-secondary);">
-          {{ message.permissionRequest.toolName }} wants to perform an action:
+          <span class="font-mono font-semibold" style="color: var(--text-primary);">{{ message.toolName || 'Tool' }}</span> wants to perform an action:
         </p>
 
         <pre
-          v-if="message.permissionRequest.toolInput"
+          v-if="message.toolInput"
           class="text-[10px] md:text-[11px] p-2 rounded-lg mb-3 overflow-auto max-h-24 font-mono"
           style="background: var(--surface-raised); color: var(--text-tertiary);"
-        >{{ JSON.stringify(message.permissionRequest.toolInput, null, 2) }}</pre>
+        >{{ typeof message.toolInput === 'string' ? message.toolInput : JSON.stringify(message.toolInput, null, 2) }}</pre>
 
         <div class="flex flex-wrap items-center gap-2">
           <button

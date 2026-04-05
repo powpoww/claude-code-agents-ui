@@ -5,18 +5,98 @@ import type { Peer } from 'crossws'
 import type { NormalizedMessage, ProviderFetchOptions } from '~/types'
 import type { ProviderAdapter, ProviderQueryOptions, ProviderInfo } from './types'
 import { normalizeSDKMessage } from '../messageNormalizer'
-import { resolveClaudePath } from '../claudeDir'
+import { getClaudeDir, resolveClaudePath } from '../claudeDir'
 import { parseFrontmatter } from '../frontmatter'
 import { detectSdkSession, loadSdkSessionMessages } from '../sdkSessionStorage'
 import { MODEL_ALIAS_KEY } from '../models'
+import { DEFAULT_OUTPUT_STYLES } from '../defaultOutputStyles'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+async function getOutputStyleContent(id: string, projectDir?: string): Promise<{ content: string; keepCodingInstructions: boolean } | null> {
+  // 1. Check built-in
+  const defaultStyle = DEFAULT_OUTPUT_STYLES.find(s => s.id === id)
+  if (defaultStyle) {
+    return { 
+      content: id === 'default' ? '' : defaultStyle.content, 
+      keepCodingInstructions: defaultStyle.keepCodingInstructions 
+    }
+  }
+
+  // 2. Check global files
+  const globalPath = resolveClaudePath('output-styles', `${id}.md`)
+  if (existsSync(globalPath)) {
+    const raw = readFileSync(globalPath, 'utf-8')
+    const { frontmatter, body } = parseFrontmatter<any>(raw)
+    return { 
+      content: body, 
+      keepCodingInstructions: frontmatter['keep-coding-instructions'] === true || frontmatter.keepCodingInstructions === true
+    }
+  }
+
+  // 3. Check project files
+  if (projectDir) {
+    const projectPath = join(projectDir, '.claude', 'output-styles', `${id}.md`)
+    if (existsSync(projectPath)) {
+      const raw = readFileSync(projectPath, 'utf-8')
+      const { frontmatter, body } = parseFrontmatter<any>(raw)
+      return { 
+        content: body, 
+        keepCodingInstructions: frontmatter['keep-coding-instructions'] === true || frontmatter.keepCodingInstructions === true
+      }
+    }
+  }
+
+  return null
+}
 
 // Store active query instances for interruption
 interface QueryInstance {
   interrupt(): Promise<void>
   [Symbol.asyncIterator](): AsyncIterator<any>
+  peerId: string
 }
 
 const activeQueries = new Map<string, QueryInstance>()
+
+// Store pending permission approvals (Promise resolvers/rejectors keyed by permissionId)
+interface PermissionResolver {
+  resolve: (decision: { allow: boolean; message?: string }) => void
+  reject: (error: Error) => void
+  peerId: string
+}
+const pendingPermissions = new Map<string, PermissionResolver>()
+
+const PERMISSION_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+
+/**
+ * Cleanup function to abort queries and reject permissions for a specific peer
+ */
+export async function cleanupPeer(peerId: string): Promise<void> {
+  console.log(`[ClaudeProvider] Cleaning up peer: ${peerId}`)
+
+  // 1. Interrupt active queries for this peer
+  for (const [sessionId, queryInstance] of activeQueries.entries()) {
+    if (queryInstance.peerId === peerId) {
+      console.log(`[ClaudeProvider] Interrupting query for session ${sessionId}`)
+      try {
+        await queryInstance.interrupt()
+      } catch (e) {
+        console.error(`[ClaudeProvider] Error interrupting query during cleanup:`, e)
+      }
+      activeQueries.delete(sessionId)
+    }
+  }
+
+  // 2. Reject pending permissions for this peer
+  for (const [permissionId, resolver] of pendingPermissions.entries()) {
+    if (resolver.peerId === peerId) {
+      console.log(`[ClaudeProvider] Rejecting permission ${permissionId} due to connection closed`)
+      resolver.reject(new Error('IPC connection closed'))
+      pendingPermissions.delete(permissionId)
+    }
+  }
+}
 
 /**
  * Map permission mode to SDK format
@@ -65,22 +145,35 @@ export const claudeProvider: ProviderAdapter = {
       }
 
       // Add system prompt configuration
-      if (options.agentInstructions) {
+      let systemAppend = options.agentInstructions || ''
+      let systemPreset: 'claude_code' | 'none' = 'claude_code'
+
+      if (options.outputStyleId) {
+        const style = await getOutputStyleContent(options.outputStyleId, options.workingDir)
+        if (style) {
+          if (style.content) {
+            systemAppend += (systemAppend ? '\n\n' : '') + `Additional style/behavioral instructions:\n${style.content}`
+          }
+          if (style.keepCodingInstructions === false) {
+            systemPreset = 'none'
+          }
+        }
+      }
+
+      if (systemAppend) {
         sdkOptions.systemPrompt = {
           type: 'preset',
-          preset: 'claude_code',
-          append: options.agentInstructions,
+          preset: systemPreset,
+          append: systemAppend,
         }
       } else {
         sdkOptions.systemPrompt = {
           type: 'preset',
-          preset: 'claude_code',
+          preset: systemPreset,
         }
       }
 
       // claudecodeui pattern: always pass resume if there's a real session ID.
-      // The SDK will resume the thread if the session exists, or start fresh if not.
-      // No app-level storage check needed — the SDK is the source of truth.
       const isRealSessionId = options.sessionId && !options.sessionId.startsWith('new-session-')
       if (isRealSessionId) {
         sdkOptions.resume = options.sessionId
@@ -100,15 +193,63 @@ export const claudeProvider: ProviderAdapter = {
         sdkOptions.effort = options.effort
       }
 
-      console.log('[ClaudeProvider] Starting query with options:', {
-        hasSessionId: !!options.sessionId,
-        isResume: isRealSessionId,
-        cwd: sdkOptions.cwd,
-        model: sdkOptions.model,
-        permissionMode: sdkOptions.permissionMode,
-      })
+      // Permission handling
+      const permissionMode = sdkOptions.permissionMode
+      if (permissionMode !== 'bypassPermissions') {
+        sdkOptions.canUseTool = async (toolName: string, input: any) => {
+          const isAllowed = (sdkOptions.allowedTools || []).some((t: string) => t === toolName)
+          if (isAllowed) {
+            return { behavior: 'allow', updatedInput: input }
+          }
 
-      // Create query instance
+          const permissionId = randomUUID()
+          const sessionId = capturedSessionId || options.sessionId || 'unknown'
+
+          sendMessage(ws, {
+            kind: 'permission_request',
+            id: permissionId,
+            sessionId,
+            timestamp: new Date().toISOString(),
+            requestId: permissionId,
+            toolName,
+            toolInput: input,
+            content: `Allow ${toolName}?`,
+            provider: 'claude',
+          })
+
+          try {
+            const decision = await new Promise<{ allow: boolean; message?: string }>((resolve, reject) => {
+              pendingPermissions.set(permissionId, { resolve, reject, peerId: ws.id })
+
+              setTimeout(() => {
+                if (pendingPermissions.has(permissionId)) {
+                  pendingPermissions.delete(permissionId)
+                  resolve({ allow: false, message: 'Permission request timed out' })
+
+                  sendMessage(ws, {
+                    kind: 'permission_cancelled',
+                    id: randomUUID(),
+                    sessionId,
+                    timestamp: new Date().toISOString(),
+                    requestId: permissionId,
+                    content: 'Permission request timed out',
+                    provider: 'claude',
+                  })
+                }
+              }, PERMISSION_TIMEOUT_MS)
+            })
+
+            if (decision.allow) {
+              return { behavior: 'allow', updatedInput: input }
+            }
+            return { behavior: 'deny', message: decision.message || 'User denied tool use' }
+          } catch (error: any) {
+            // This happens if cleanupPeer rejects the promise
+            return { behavior: 'deny', message: error.message || 'Connection closed' }
+          }
+        }
+      }
+
       const queryInstance = query({
         prompt,
         options: sdkOptions,
@@ -116,12 +257,12 @@ export const claudeProvider: ProviderAdapter = {
 
       // Stream responses
       for await (const message of queryInstance) {
-        // Capture session ID from SDK (first message for new sessions)
         if (message.session_id && !capturedSessionId) {
           capturedSessionId = message.session_id
-          activeQueries.set(capturedSessionId, queryInstance)
+          const extendedInstance = queryInstance as QueryInstance
+          extendedInstance.peerId = ws.id
+          activeQueries.set(capturedSessionId, extendedInstance)
 
-          // New session: emit session_created so frontend updates its session ID
           if (!sessionCreatedSent) {
             sessionCreatedSent = true
             sendMessage(ws, {
@@ -135,14 +276,13 @@ export const claudeProvider: ProviderAdapter = {
             })
           }
         } else if (isRealSessionId && capturedSessionId && !activeQueries.has(capturedSessionId)) {
-          // Register resumed session's query instance for interrupt support
-          activeQueries.set(capturedSessionId, queryInstance)
+          const extendedInstance = queryInstance as QueryInstance
+          extendedInstance.peerId = ws.id
+          activeQueries.set(capturedSessionId, extendedInstance)
         }
 
-        // Normalize SDK message
         const normalized = normalizeSDKMessage(message, capturedSessionId || 'unknown')
 
-        // Stream all normalized messages to the client
         for (const msg of normalized) {
           const msgWithProvider: NormalizedMessage = {
             ...msg,
@@ -150,7 +290,6 @@ export const claudeProvider: ProviderAdapter = {
           }
           sendMessage(ws, msgWithProvider)
 
-          // Accumulate streaming text deltas
           if (msg.kind === 'stream_delta' && msg.content) {
             accumulatedText += msg.content
           }
@@ -161,7 +300,6 @@ export const claudeProvider: ProviderAdapter = {
         }
       }
 
-      // Send complete message
       const completeMsg: NormalizedMessage = {
         kind: 'complete',
         id: randomUUID(),
@@ -171,8 +309,6 @@ export const claudeProvider: ProviderAdapter = {
         provider: 'claude',
       }
       sendMessage(ws, completeMsg)
-
-      console.log('[ClaudeProvider] Query completed:', capturedSessionId)
     } catch (error: any) {
       console.error('[ClaudeProvider] Error:', error)
 
@@ -189,6 +325,20 @@ export const claudeProvider: ProviderAdapter = {
       if (capturedSessionId) {
         activeQueries.delete(capturedSessionId)
       }
+    }
+  },
+
+  async respondToPermission(permissionId: string, decision: 'allow' | 'deny'): Promise<void> {
+    const pending = pendingPermissions.get(permissionId)
+    if (pending) {
+      pendingPermissions.delete(permissionId)
+      pending.resolve({
+        allow: decision === 'allow',
+        message: decision === 'deny' ? 'User denied tool use' : undefined,
+      })
+      console.log(`[ClaudeProvider] Permission ${permissionId} resolved: ${decision}`)
+    } else {
+      console.warn(`[ClaudeProvider] No pending permission found for ${permissionId}`)
     }
   },
 
@@ -212,7 +362,6 @@ export const claudeProvider: ProviderAdapter = {
   },
 
   async fetchHistory(sessionId: string, options: ProviderFetchOptions) {
-    // Read directly from SDK's native project storage
     const projectName = await detectSdkSession(sessionId)
     if (projectName) {
       const result = await loadSdkSessionMessages(projectName, sessionId, {
@@ -246,9 +395,6 @@ export const claudeProvider: ProviderAdapter = {
   },
 }
 
-/**
- * Send a normalized message via WebSocket
- */
 function sendMessage(ws: Peer, message: NormalizedMessage): void {
   try {
     ws.send(JSON.stringify(message))
@@ -257,9 +403,6 @@ function sendMessage(ws: Peer, message: NormalizedMessage): void {
   }
 }
 
-/**
- * Provider info for registration
- */
 export const claudeProviderInfo: ProviderInfo = {
   name: 'claude',
   displayName: 'Claude',

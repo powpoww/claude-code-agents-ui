@@ -1,9 +1,7 @@
 import type { Peer } from 'crossws'
 import { providerRegistry } from '../../../utils/providers/registry'
+import { cleanupPeer } from '../../../utils/providers/claudeProvider'
 import type { ChatV2WebSocketMessage, NormalizedMessage } from '~/types'
-
-// Store pending permissions for permission responses
-const pendingPermissions = new Map<string, { sessionId: string; peer: Peer }>()
 
 export default defineWebSocketHandler({
   open(peer: Peer) {
@@ -51,6 +49,7 @@ export default defineWebSocketHandler({
               agentSlug: msg.agentSlug,
               workingDir: msg.workingDir,
               permissionMode: msg.permissionMode,
+              outputStyleId: msg.outputStyleId,
             },
           }
 
@@ -78,6 +77,7 @@ export default defineWebSocketHandler({
               permissionMode: msg.permissionMode,
               model: msg.model,
               effort: msg.effort,
+              outputStyleId: msg.outputStyleId,
               images: msg.images,
               // Pass user message for provider to save with correct sessionId
               userMessage,
@@ -107,21 +107,15 @@ export default defineWebSocketHandler({
         }
 
         case 'permission_response': {
-          const permissionInfo = pendingPermissions.get(msg.permissionId)
+          const provider = providerRegistry.getDefault()
 
-          if (permissionInfo) {
-            const provider = providerRegistry.getDefault()
-
-            if (provider.respondToPermission) {
-              await provider.respondToPermission(msg.permissionId, msg.decision)
-            }
-
-            pendingPermissions.delete(msg.permissionId)
+          if (provider.respondToPermission) {
+            await provider.respondToPermission(msg.permissionId, msg.decision)
 
             peer.send(JSON.stringify({
               kind: 'status',
               id: `status-${Date.now()}`,
-              sessionId: permissionInfo.sessionId,
+              sessionId: msg.sessionId || peer.id,
               timestamp: new Date().toISOString(),
               content: `Permission ${msg.decision === 'allow' ? 'granted' : 'denied'}`,
             }))
@@ -131,7 +125,7 @@ export default defineWebSocketHandler({
               id: `error-${Date.now()}`,
               sessionId: peer.id,
               timestamp: new Date().toISOString(),
-              content: `Permission request '${msg.permissionId}' not found or expired`,
+              content: `Provider does not support permissions`,
               isError: true,
             }))
           }
@@ -169,36 +163,12 @@ export default defineWebSocketHandler({
     }
   },
 
-  close(peer: Peer) {
+  async close(peer: Peer) {
     console.log('[Chat v2 WS] Client disconnected', peer.id)
-
-    // Clean up any pending permissions for this peer
-    for (const [permissionId, info] of pendingPermissions) {
-      if (info.peer === peer) {
-        pendingPermissions.delete(permissionId)
-      }
-    }
+    await cleanupPeer(peer.id)
   },
 
   error(peer: Peer, error) {
     console.error('[Chat v2 WS] Error:', error)
   },
 })
-
-/**
- * Register a pending permission (called from provider when permission is requested)
- */
-export function registerPendingPermission(permissionId: string, sessionId: string, peer: Peer) {
-  pendingPermissions.set(permissionId, { sessionId, peer })
-
-  // Auto-expire after 5 minutes
-  setTimeout(() => {
-    if (pendingPermissions.has(permissionId)) {
-      pendingPermissions.delete(permissionId)
-      peer.send(JSON.stringify({
-        type: 'permission_expired',
-        permissionId,
-      }))
-    }
-  }, 5 * 60 * 1000)
-}

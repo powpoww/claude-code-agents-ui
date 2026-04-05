@@ -130,6 +130,9 @@ function convertSingleMessage(
       return {
         ...base,
         kind: 'permission_request',
+        requestId: msg.requestId || msg.id,
+        toolName: msg.toolName || 'Unknown Tool',
+        toolInput: msg.toolInput,
         permissionRequest: permission,
         content: msg.content,
       } as DisplayChatMessage

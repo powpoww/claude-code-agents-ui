@@ -250,6 +250,29 @@ export interface StepExecution {
   completedAt?: number
 }
 
+// ── Output Styles ─────────────────────────────────────
+
+export interface OutputStyle {
+  id: string
+  name: string
+  description?: string
+  keepCodingInstructions?: boolean
+  content: string
+  scope: 'global' | 'project'
+  path: string
+}
+
+export interface OutputStylePayload {
+  id: string
+  name: string
+  description?: string
+  keepCodingInstructions?: boolean
+  content: string
+  scope: 'global' | 'project'
+  oldId?: string
+  workingDir?: string
+}
+
 // ── Chat ──────────────────────────────────────────
 
 export interface ChatMessage {
@@ -466,6 +489,7 @@ export interface DisplayChatMessage {
   isError?: boolean
   thinking?: string
   images?: string[]
+  requestId?: string
   permissionRequest?: PendingPermission
   taskProgress?: TaskProgress
   interactivePrompt?: InteractivePrompt
@@ -533,6 +557,7 @@ export type ChatV2WebSocketMessage =
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      outputStyleId?: string
       images?: string[]
     }
   | { type: 'abort'; sessionId: string }
@@ -560,6 +585,7 @@ export interface ProviderQueryOptions {
   model?: string
   permissionMode?: PermissionMode
   effort?: EffortLevel
+  outputStyleId?: string
   images?: string[]
 }
 

@@ -158,7 +158,7 @@ function submit() {
           </span>
         </label>
         <div class="flex flex-col">
-          <span class="text-[13px] font-medium" :class="!enabled ? 'text-secondary' : 'text-primary'">
+          <span class="text-[13px] font-medium" :style="{ color: !enabled ? 'var(--text-secondary)' : 'var(--text-primary)' }">
             {{ !enabled ? 'Create as Disabled' : 'Server Enabled' }}
           </span>
         </div>

@@ -1,5 +1,5 @@
 import type { Peer } from 'crossws'
-import { queryClaudeChat, interruptQuery, loadAgentInstructions } from '../../utils/claudeSdk'
+import { queryClaudeChat, interruptQuery, loadAgentInstructions, cleanupQueries } from '../../utils/claudeSdk'
 import { saveMessageToSession } from '../../utils/chatSessionStorage'
 import type { ChatWebSocketMessage, NormalizedMessage } from '~/types'
 
@@ -106,8 +106,9 @@ export default defineWebSocketHandler({
     }
   },
 
-  close(peer: Peer) {
+  async close(peer: Peer) {
     console.log('[Chat WS] Client disconnected', peer.id)
+    await cleanupQueries(peer.id)
   },
 
   error(peer: Peer, error) {

@@ -61,11 +61,7 @@ export function useClaudeCodeHistory() {
   async function fetchProjects() {
     isLoadingProjects.value = true
     try {
-      const response = await $fetch<{
-        projects: ClaudeCodeProject[]
-        total: number
-      }>('/api/projects') // Use the consolidated endpoint
-
+      const response = await $fetch<ClaudeCodeProject[]>('/api/projects')
       projects.value = response
       return response
     } catch (error) {

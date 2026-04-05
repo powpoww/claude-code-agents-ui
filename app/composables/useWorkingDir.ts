@@ -1,15 +1,13 @@
 export function useWorkingDir() {
   const workingDir = useState<string>('working-dir', () => '')
 
-  // Hydrate from localStorage on client after mount
-  onMounted(() => {
-    if (!workingDir.value) {
-      const stored = localStorage.getItem('agents-ui:working-dir')
-      if (stored) {
-        workingDir.value = stored
-      }
+  // On client, try to initialize from localStorage immediately
+  if (import.meta.client && !workingDir.value) {
+    const stored = localStorage.getItem('agents-ui:working-dir')
+    if (stored) {
+      workingDir.value = stored
     }
-  })
+  }
 
   function setWorkingDir(dir: string) {
     const trimmed = dir.trim()
@@ -28,14 +26,13 @@ export function useWorkingDir() {
   }
 
   const displayPath = computed(() => {
-    if (!workingDir.value) return null
-    // Show last 2 segments for brevity
+    if (!workingDir.value) return ''
     const parts = workingDir.value.split('/')
     return parts.length > 2 ? '.../' + parts.slice(-2).join('/') : workingDir.value
   })
 
   return {
-    workingDir: readonly(workingDir),
+    workingDir,
     displayPath,
     setWorkingDir,
     clearWorkingDir,

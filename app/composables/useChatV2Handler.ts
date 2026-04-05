@@ -324,6 +324,7 @@ export function useChatV2Handler() {
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      outputStyleId?: string
       images?: string[]
     } = {}
   ): boolean {
@@ -360,6 +361,7 @@ export function useChatV2Handler() {
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      outputStyleId?: string
       images?: string[]
     } = {}
   ): boolean {
@@ -377,6 +379,7 @@ export function useChatV2Handler() {
       permissionMode: options.permissionMode || permissions.permissionMode.value,
       model: options.model,
       effort: options.effort,
+      outputStyleId: options.outputStyleId,
       images: options.images,
     }
 

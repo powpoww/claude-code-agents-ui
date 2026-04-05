@@ -7,14 +7,17 @@ export function useCrud<T extends { slug: string }, P = unknown>(basePath: strin
   const items = useState<T[]>(opts.stateKey, () => [])
   const loading = useState(`${opts.stateKey}Loading`, () => false)
   const error = useState<string | null>(`${opts.stateKey}Error`, () => null)
+  const { workingDir } = useWorkingDir()
 
   const label = opts.label || opts.stateKey
 
-  async function fetchAll() {
+  async function fetchAll(params: any = {}) {
     loading.value = true
     error.value = null
     try {
-      items.value = await $fetch<T[]>(basePath) as T[]
+      items.value = await $fetch<T[]>(basePath, { 
+        query: { workingDir: workingDir.value, ...params } 
+      }) as T[]
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : `Failed to load ${label}`
       error.value = msg
@@ -24,18 +27,26 @@ export function useCrud<T extends { slug: string }, P = unknown>(basePath: strin
     }
   }
 
-  async function fetchOne(slug: string) {
-    return await $fetch<T>(`${basePath}/${slug}`) as T
+  async function fetchOne(slug: string, params: any = {}) {
+    return await $fetch<T>(`${basePath}/${slug}`, {
+      query: { workingDir: workingDir.value, ...params }
+    }) as T
   }
 
   async function create(payload: P) {
-    const item = await $fetch<T>(basePath, { method: 'POST', body: payload as Record<string, unknown> }) as T
+    const item = await $fetch<T>(basePath, { 
+      method: 'POST', 
+      body: { ...payload as Record<string, unknown>, workingDir: workingDir.value } 
+    }) as T
     items.value.push(item)
     return item
   }
 
   async function update(slug: string, payload: P) {
-    const item = await $fetch<T>(`${basePath}/${slug}`, { method: 'PUT', body: payload as Record<string, unknown> }) as T
+    const item = await $fetch<T>(`${basePath}/${slug}`, { 
+      method: 'PUT', 
+      body: { ...payload as Record<string, unknown>, workingDir: workingDir.value } 
+    }) as T
     const idx = items.value.findIndex(i => i.slug === slug)
     if (idx >= 0) items.value[idx] = item
     else items.value.push(item)
@@ -43,7 +54,10 @@ export function useCrud<T extends { slug: string }, P = unknown>(basePath: strin
   }
 
   async function remove(slug: string) {
-    await $fetch(`${basePath}/${slug}`, { method: 'DELETE' as const })
+    await $fetch(`${basePath}/${slug}`, { 
+      method: 'DELETE' as const,
+      query: { workingDir: workingDir.value }
+    })
     items.value = items.value.filter(i => i.slug !== slug)
   }
 
