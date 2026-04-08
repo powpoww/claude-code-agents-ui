@@ -2,6 +2,9 @@
   <img src="docs/assets/header.png" alt="agents-ui — visualize your Claude Code" width="720" />
 </p>
 
+<h1 align="center">Claude Code Agents UI <br/>
+  (aka Claude Code Managements Studio)</h1>
+
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
   <a href="https://github.com/Ngxba/claude-code-agents-ui/blob/main/CONTRIBUTING.md"><strong>Contributing</strong></a> &middot;
