@@ -1,9 +1,10 @@
 {
-  "name": "agents-ui",
-  "private": true,
+  "name": "claude-code-agents-ui",
+  "version": "1.0.1",
+  "private": false,
   "type": "module",
   "bin": {
-    "agents-ui": "./bin/start.mjs"
+    "claude-code-agents-ui": "./bin/start.mjs"
   },
   "scripts": {
     "build": "nuxt build",
@@ -11,8 +12,15 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "prepublishOnly": "npm run build"
   },
+  "files": [
+    ".output",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.76",
     "@nuxt/ui": "^3",

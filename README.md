@@ -167,18 +167,30 @@ agents-ui handles the visual orchestration of Claude Code correctly.
 
 ## Quickstart
 
-Open source. Self-hosted. Use your local Claude Code setup.
+The fastest way to use **claude-code-agents-ui** is with `npx`:
+
+```bash
+npx claude-code-agents-ui
+```
+
+This will automatically start the UI and open **http://localhost:3000** in your browser. It will load your existing `~/.claude` setup automatically.
+
+<br/>
+
+## Development
+
+If you'd like to run from source or contribute:
 
 ```bash
 git clone https://github.com/Ngxba/claude-code-agents-ui.git
 cd claude-code-agents-ui
-bun install
-bun run dev
+npm install
+npm run dev
 ```
 
 Open **http://localhost:3000** — agents-ui will automatically load your `~/.claude` setup.
 
-> **Requirements:** [Bun](https://bun.sh) (recommended) or Node.js 18+
+> **Requirements:** Node.js 18+ (Bun recommended for development)
 
 <br/>
 

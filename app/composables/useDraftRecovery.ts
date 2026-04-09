@@ -4,7 +4,7 @@ interface DraftData {
   savedAt: number
 }
 
-const DRAFT_PREFIX = 'agents-ui-draft:'
+const DRAFT_PREFIX = 'claude-code-agents-ui-draft:'
 const DRAFT_TTL = 24 * 60 * 60 * 1000 // 24 hours
 
 export function useDraftRecovery(key: string) {

@@ -18,6 +18,9 @@ export default defineNuxtConfig({
     experimental: {
       websocket: true,
     },
+    externals: {
+      include: ['node-pty'],
+    },
   },
 
   app: {

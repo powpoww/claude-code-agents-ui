@@ -4,7 +4,7 @@ interface VersionSnapshot {
   body: string
 }
 
-const HISTORY_PREFIX = 'agents-ui-history:'
+const HISTORY_PREFIX = 'claude-code-agents-ui-history:'
 const MAX_VERSIONS = 20
 
 export function useVersionHistory(key: string) {

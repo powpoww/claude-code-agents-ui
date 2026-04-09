@@ -3,7 +3,7 @@ export function useWorkingDir() {
 
   // On client, try to initialize from localStorage immediately
   if (import.meta.client && !workingDir.value) {
-    const stored = localStorage.getItem('agents-ui:working-dir')
+    const stored = localStorage.getItem('claude-code-agents-ui:working-dir')
     if (stored) {
       workingDir.value = stored
     }
@@ -14,9 +14,9 @@ export function useWorkingDir() {
     workingDir.value = trimmed
     if (import.meta.client) {
       if (trimmed) {
-        localStorage.setItem('agents-ui:working-dir', trimmed)
+        localStorage.setItem('claude-code-agents-ui:working-dir', trimmed)
       } else {
-        localStorage.removeItem('agents-ui:working-dir')
+        localStorage.removeItem('claude-code-agents-ui:working-dir')
       }
     }
   }
