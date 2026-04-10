@@ -111,12 +111,13 @@ const inputText = ref('')
 const messagesContainerRef = ref<HTMLElement | null>(null)
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
-const showContextDetails = ref(false)
+const showRightSidebar = ref(false)
+const activeRightTab = ref<'context' | 'explorer' | 'git' | 'preview'>('context')
 const isCreatingSession = ref(false)
 const isInputFocused = ref(false)
 
 // Context details sidebar drag-to-resize
-const contextSidebarWidth = ref(400)
+const contextSidebarWidth = ref(500)
 const isDraggingContextSidebar = ref(false)
 const dragStartX = ref(0)
 const dragStartWidth = ref(0)
@@ -135,7 +136,7 @@ function onContextSidebarDragStart(e: MouseEvent) {
 function onContextSidebarDragMove(e: MouseEvent) {
   if (!isDraggingContextSidebar.value) return
   const delta = dragStartX.value - e.clientX
-  contextSidebarWidth.value = Math.min(800, Math.max(240, dragStartWidth.value + delta))
+  contextSidebarWidth.value = Math.min(800, Math.max(300, dragStartWidth.value + delta))
 }
 
 function onContextSidebarDragEnd() {
@@ -143,6 +144,11 @@ function onContextSidebarDragEnd() {
   document.body.classList.remove('dragging-context-sidebar')
   document.removeEventListener('mousemove', onContextSidebarDragMove)
   document.removeEventListener('mouseup', onContextSidebarDragEnd)
+}
+
+function openRightTab(tab: 'context' | 'explorer' | 'git' | 'preview') {
+  activeRightTab.value = tab
+  showRightSidebar.value = true
 }
 
 // Responsive sidebar width based on window size
@@ -1260,13 +1266,34 @@ async function handleSessionDeleted(payload: { projectName: string; sessionId: s
   }
 }
 
-const { openFile } = useFileEditor()
+const { openFile, closeEditor, state: fileEditorState } = useFileEditor()
 
-// Handle file open (from tool use clicks)
+// Handle file open (from tool use clicks or sidebar)
 function handleOpenFile(filePath: string) {
   console.log('[ChatV2] Open file:', filePath)
-  if (filePath) {
-    openFile(filePath)
+  if (!filePath) return
+
+  // If path is relative, try to resolve it against project path
+  let absolutePath = filePath
+  if (!filePath.startsWith('/')) {
+    const projectPath = selectedProjectPath.value
+    if (projectPath) {
+      absolutePath = projectPath.endsWith('/') ? `${projectPath}${filePath}` : `${projectPath}/${filePath}`
+    }
+  }
+
+  openFile(absolutePath)
+  
+  // Switch to preview tab and ensure sidebar is open
+  activeRightTab.value = 'preview'
+  showRightSidebar.value = true
+}
+
+function handleClosePreview() {
+  closeEditor()
+  // If we were on preview tab, switch to explorer
+  if (activeRightTab.value === 'preview') {
+    activeRightTab.value = 'explorer'
   }
 }
 </script>
@@ -1524,22 +1551,39 @@ function handleOpenFile(filePath: string) {
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <!-- Model Selector -->
-          <ChatV2ModelSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
-            v-model="selectedModel"
-            :options="MODEL_OPTIONS_CHAT"
-          />
-
-          <!-- Permission Mode Selector (only when viewing a specific chat session) -->
-          <ChatV2PermissionModeSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
-            v-model="selectedPermissionMode"
-            :options="permissionModeOptions"
-          />
+          <!-- Sidebar Toggles -->
+          <div v-if="urlProjectName || currentSessionId || urlSessionId" class="flex items-center gap-1 px-1 py-1 rounded-lg" style="background: var(--surface-raised); border: 1px solid var(--border-subtle);">
+            <UTooltip text="Context Details" :popper="{ placement: 'top' }">
+              <button 
+                class="p-1.5 rounded-md transition-all hover-bg" 
+                :style="{ color: showRightSidebar && activeRightTab === 'context' ? 'var(--accent)' : 'var(--text-tertiary)' }"
+                @click="openRightTab('context')"
+              >
+                <UIcon name="i-lucide-database" class="size-4" />
+              </button>
+            </UTooltip>
+            <UTooltip text="File Browser" :popper="{ placement: 'top' }">
+              <button 
+                class="p-1.5 rounded-md transition-all hover-bg" 
+                :style="{ color: showRightSidebar && activeRightTab === 'files' ? 'var(--accent)' : 'var(--text-tertiary)' }"
+                @click="openRightTab('files')"
+              >
+                <UIcon name="i-lucide-folder-tree" class="size-4" />
+              </button>
+            </UTooltip>
+            <UTooltip text="Git Control" :popper="{ placement: 'top' }">
+              <button 
+                class="p-1.5 rounded-md transition-all hover-bg" 
+                :style="{ color: showRightSidebar && activeRightTab === 'git' ? 'var(--accent)' : 'var(--text-tertiary)' }"
+                @click="openRightTab('git')"
+              >
+                <UIcon name="i-lucide-git-branch" class="size-4" />
+              </button>
+            </UTooltip>
+          </div>
 
           <!-- Session ID (only in live mode) -->
-          <span v-if="viewMode === 'live' && currentSessionId" class="text-[10px] font-mono" style="color: var(--text-tertiary);">
+          <span v-if="viewMode === 'live' && currentSessionId" class="hidden md:inline text-[10px] font-mono opacity-50" style="color: var(--text-tertiary);">
             {{ currentSessionId.slice(0, 8) }}
           </span>
         </div>
@@ -1660,9 +1704,27 @@ function handleOpenFile(filePath: string) {
         <!-- Floating-style Controls (Thinking + Context) -->
         <div 
           v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
-          class="absolute bottom-0 left-0 right-0 flex justify-center items-center gap-4 py-4 z-10"
+          class="absolute bottom-0 left-0 right-0 flex justify-center items-center gap-3 py-4 z-10"
           style="background: linear-gradient(to top, var(--surface-base) 20%, transparent 100%); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
         >
+          <!-- Model Selector -->
+          <ChatV2ModelSelector
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+            v-model="selectedModel"
+            :options="MODEL_OPTIONS_CHAT"
+            class="shadow-lg border rounded-full bg-overlay backdrop-blur-md"
+            style="border-color: var(--border-subtle);"
+          />
+
+          <!-- Permission Mode Selector -->
+          <ChatV2PermissionModeSelector
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
+            v-model="selectedPermissionMode"
+            :options="permissionModeOptions"
+            class="shadow-lg border rounded-full bg-overlay backdrop-blur-md"
+            style="border-color: var(--border-subtle);"
+          />
+
           <!-- Effort Level Selector -->
           <div ref="effortMenuRef" class="relative">
             <button
@@ -1726,7 +1788,7 @@ function handleOpenFile(filePath: string) {
             <div 
               class="flex items-center justify-center size-8 sm:size-9 rounded-full shadow-lg border backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95"
               style="background: var(--surface-overlay); border-color: var(--border-subtle);"
-              @click="showContextDetails = !showContextDetails"
+              @click="openRightTab('context')"
             >
               <div class="relative size-6">
                 <!-- SVG Progress Circle -->
@@ -1791,22 +1853,22 @@ function handleOpenFile(filePath: string) {
     </div>
   </div>
 
-  <!-- Floating Right Sidebar - Context Details -->
+  <!-- Floating Right Sidebar - Details Panels -->
   <Teleport to="body">
     <div class="fixed inset-0 z-[100] pointer-events-none">
       <!-- Backdrop -->
       <Transition name="fade">
         <div 
-          v-if="showContextDetails" 
+          v-if="showRightSidebar" 
           class="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" 
-          @click="showContextDetails = false" 
+          @click="showRightSidebar = false" 
         />
       </Transition>
 
       <!-- Sidebar Panel -->
       <Transition name="slide">
         <div
-          v-if="showContextDetails"
+          v-if="showRightSidebar"
           class="absolute inset-y-0 right-0 flex flex-col shadow-2xl pointer-events-auto border-l"
           :style="{
             background: 'var(--surface-overlay)',
@@ -1821,24 +1883,97 @@ function handleOpenFile(filePath: string) {
             :class="isDraggingContextSidebar ? 'bg-accent/40' : 'hover:bg-accent/30'"
             @mousedown="onContextSidebarDragStart"
           />
-          <!-- Sidebar Header -->
-          <div class="shrink-0 px-4 h-14 border-b flex items-center justify-between" style="border-color: var(--border-subtle);">
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-database" class="size-4 text-accent" />
-              <h3 class="text-[13px] font-semibold" style="color: var(--text-primary);">Context Details</h3>
+          
+          <!-- Sidebar Header & Tabs -->
+          <div class="shrink-0 h-14 border-b flex items-center justify-between" style="border-color: var(--border-subtle);">
+            <div class="flex h-full items-stretch overflow-x-auto no-scrollbar">
+              <button 
+                class="px-4 flex items-center gap-2 border-b-2 transition-all text-[13px] font-semibold whitespace-nowrap"
+                :style="{ 
+                  borderColor: activeRightTab === 'context' ? 'var(--accent)' : 'transparent',
+                  color: activeRightTab === 'context' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  background: activeRightTab === 'context' ? 'var(--surface-raised)' : 'transparent'
+                }"
+                @click="activeRightTab = 'context'"
+              >
+                <UIcon name="i-lucide-database" class="size-4" />
+                <span>Context</span>
+              </button>
+              <button 
+                class="px-4 flex items-center gap-2 border-b-2 transition-all text-[13px] font-semibold whitespace-nowrap"
+                :style="{ 
+                  borderColor: activeRightTab === 'explorer' ? 'var(--accent)' : 'transparent',
+                  color: activeRightTab === 'explorer' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  background: activeRightTab === 'explorer' ? 'var(--surface-raised)' : 'transparent'
+                }"
+                @click="activeRightTab = 'explorer'"
+              >
+                <UIcon name="i-lucide-folder-tree" class="size-4" />
+                <span>Explorer</span>
+              </button>
+              <button 
+                class="px-4 flex items-center gap-2 border-b-2 transition-all text-[13px] font-semibold whitespace-nowrap"
+                :style="{ 
+                  borderColor: activeRightTab === 'git' ? 'var(--accent)' : 'transparent',
+                  color: activeRightTab === 'git' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  background: activeRightTab === 'git' ? 'var(--surface-raised)' : 'transparent'
+                }"
+                @click="activeRightTab = 'git'"
+              >
+                <UIcon name="i-lucide-git-branch" class="size-4" />
+                <span>Git</span>
+              </button>
+              <div 
+                class="flex items-center gap-1 border-b-2 transition-all text-[13px] font-semibold whitespace-nowrap"
+                :style="{ 
+                  borderColor: activeRightTab === 'preview' ? 'var(--accent)' : 'transparent',
+                  background: activeRightTab === 'preview' ? 'var(--surface-raised)' : 'transparent',
+                  opacity: fileEditorState.isOpen ? 1 : 0.4
+                }"
+              >
+                <button 
+                  class="pl-4 pr-1 py-4 flex items-center gap-2"
+                  :style="{ color: activeRightTab === 'preview' ? 'var(--text-primary)' : 'var(--text-tertiary)' }"
+                  :disabled="!fileEditorState.isOpen"
+                  @click="activeRightTab = 'preview'"
+                >
+                  <UIcon name="i-lucide-eye" class="size-4" />
+                  <span>Preview</span>
+                </button>
+                <button 
+                  v-if="fileEditorState.isOpen"
+                  class="mr-2 p-1 rounded-md hover:bg-[var(--surface-hover)] text-meta transition-colors"
+                  @click.stop="handleClosePreview"
+                >
+                  <UIcon name="i-lucide-x" class="size-3" />
+                </button>
+              </div>
             </div>
             <button
-              class="p-1.5 rounded-lg hover-bg transition-all"
+              class="mx-4 p-1.5 rounded-lg hover-bg transition-all"
               style="background: var(--surface-raised);"
-              @click="showContextDetails = false"
+              @click="showRightSidebar = false"
             >
               <UIcon name="i-lucide-x" class="size-4" style="color: var(--text-tertiary);" />
             </button>
           </div>
 
-          <!-- Details Content -->
-          <div class="flex-1 overflow-y-auto">
-            <ChatV2ContextDetails :metrics="contextMonitor.metrics.value" />
+          <!-- Tab Content -->
+          <div class="flex-1 overflow-hidden flex flex-col">
+            <ChatV2ContextDetails v-if="activeRightTab === 'context'" :metrics="contextMonitor.metrics.value" />
+            <ChatV2FileTree 
+              v-else-if="activeRightTab === 'explorer'" 
+              :project-name="urlProjectName || localWorkingDir" 
+              @open-file="handleOpenFile"
+            />
+            <ChatV2GitPanel 
+              v-else-if="activeRightTab === 'git'" 
+              :project-name="urlProjectName || localWorkingDir" 
+              @open-file="handleOpenFile"
+            />
+            <div v-else-if="activeRightTab === 'preview'" class="flex-1 overflow-hidden flex flex-col">
+               <FileEditorSidebarContent />
+            </div>
           </div>
         </div>
       </Transition>

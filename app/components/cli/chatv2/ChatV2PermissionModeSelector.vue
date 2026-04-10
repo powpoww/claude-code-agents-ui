@@ -45,15 +45,15 @@ onUnmounted(() => {
 <template>
   <div ref="dropdownRef" class="relative z-10 min-w-0">
     <button
-      class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all max-w-full"
-      style="background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-subtle);"
+      class="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all max-w-full hover:bg-[var(--surface-hover)]"
+      style="color: var(--text-secondary);"
       @click="isOpen = !isOpen"
     >
-      <UIcon name="i-lucide-shield" class="size-3 shrink-0" />
+      <UIcon name="i-lucide-shield" class="size-3.5 shrink-0" />
       <span class="truncate">{{ selectedOption?.label || 'Default' }}</span>
       <UIcon
-        :name="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-        class="size-3 shrink-0"
+        :name="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+        class="size-3 shrink-0 opacity-50"
       />
     </button>
 
@@ -61,7 +61,7 @@ onUnmounted(() => {
     <Transition name="dropdown">
       <div
         v-if="isOpen"
-        class="absolute top-full right-0 mt-1 w-56 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden z-50"
+        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden z-50"
         style="background: var(--surface-overlay); border: 1px solid var(--border-default); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-subtle);"
       >
         <div class="py-1">
