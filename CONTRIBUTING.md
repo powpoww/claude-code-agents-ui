@@ -30,7 +30,7 @@ Thank you for your interest in contributing to **claude-code-agents-ui**! We’r
 4. **Open the app**
 
    ```
-   http://localhost:3000
+   http://localhost:3030
    ```
 
 ---

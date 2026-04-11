@@ -43,10 +43,10 @@ COPY --from=build /app/node_modules/node-pty/build /app/.output/server/node_modu
 
 # Set environment variables
 ENV HOST=0.0.0.0
-ENV PORT=3000
+ENV PORT=3030
 ENV NODE_ENV=production
 
-EXPOSE 3000
+EXPOSE 3030
 
 # Run the production server
 CMD ["node", ".output/server/index.mjs"]

@@ -80,15 +80,54 @@ function extractToolResultContent(content: string | Array<{ type: string; text?:
 }
 
 /**
+ * Normalize tool names for deduplication
+ */
+function normalizeToolName(name: string): string {
+  const n = (name || '').toLowerCase()
+  if (n === 'read_file' || n === 'read') return 'read'
+  if (n === 'write_file' || n === 'write') return 'write'
+  if (n === 'glob_search' || n === 'glob') return 'glob'
+  if (n === 'tool_search' || n === 'toolsearch') return 'toolsearch'
+  if (n === 'grep_search' || n === 'grep') return 'grep'
+  return n
+}
+
+/**
+ * Extract target from tool input (mimicking ChatV2MessageItem.vue toolFileName)
+ */
+function getToolTarget(toolInput: any): string {
+  if (!toolInput) return ''
+  let input = toolInput
+  if (typeof input === 'string') {
+    try {
+      input = JSON.parse(input)
+    } catch (e) {
+      return input.replace(/^\.\//, '')
+    }
+  }
+
+  if (typeof input === 'object') {
+    const val = input.file_path || input.path || input.filePath || input.filename || input.pattern || input.file || input.command || ''
+    return typeof val === 'string' ? val.replace(/^\.\//, '') : JSON.stringify(val)
+  }
+  return ''
+}
+
+/**
  * Convert Claude Code messages to DisplayChatMessage format
  */
 export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): DisplayChatMessage[] {
+  // Sort messages by timestamp first to ensure Turn-based deduplication works correctly
+  const sortedMessages = [...messages].sort((a, b) =>
+    new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+  )
+
   const displayMessages: DisplayChatMessage[] = []
 
   // First pass: collect tool results by tool_use_id
   const toolResultsMap = new Map<string, { content: string; isError: boolean; toolUseResult?: any }>()
 
-  for (const msg of messages) {
+  for (const msg of sortedMessages) {
     if (msg.message?.content && Array.isArray(msg.message.content)) {
       for (const block of msg.message.content) {
         if (block.type === 'tool_result' && block.tool_use_id) {
@@ -104,7 +143,9 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
   }
 
   // Second pass: convert messages
-  for (const msg of messages) {
+  const seenToolCalls = new Set<string>()
+
+  for (const msg of sortedMessages) {
     // Skip non-message entries
     if (msg.type === 'summary' || msg.type === 'file-history-snapshot') {
       continue
@@ -126,10 +167,13 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
           .join('\n')
       }
 
-      // Skip system messages
+      // Skip system messages and DON'T clear seen tools for them
       if (isSystemMessage(textContent)) {
         continue
       }
+
+      // Real user message: reset seen tools for the new interaction turn
+      seenToolCalls.clear()
 
       if (textContent.trim()) {
         displayMessages.push({
@@ -178,6 +222,16 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
           else if (block.type === 'tool_use' && block.name) {
             const toolResult = block.id ? toolResultsMap.get(block.id) : undefined
             
+            // Deduplication: skip if this is the same tool and target as a previous one in this turn
+            const toolName = normalizeToolName(block.name)
+            const target = getToolTarget(block.input)
+            
+            const toolKey = `${toolName}:${target}`
+            if (seenToolCalls.has(toolKey)) {
+              continue
+            }
+            seenToolCalls.add(toolKey)
+
             // Check if this is an AskUserQuestion
             const isAskUserQuestion = ['askuserquestion', 'ask_user', 'askuser', 'ask_user_question', 'prompt', 'input_request'].includes(block.name.toLowerCase())
             
@@ -232,20 +286,27 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
 
     // Handle standalone tool entries (older format)
     else if (msg.toolName) {
-      displayMessages.push({
-        id: msg.uuid || `tool-${msg.timestamp}`,
-        role: 'assistant',
-        content: '',
-        timestamp: msg.timestamp,
-        kind: 'tool_use',
-        toolName: msg.toolName,
-        toolInput: msg.toolInput,
-        toolResult: msg.toolUseResult
-      })
+      const toolName = normalizeToolName(msg.toolName)
+      const target = getToolTarget(msg.toolInput)
+      
+      const toolKey = `${toolName}:${target}`
+      if (!seenToolCalls.has(toolKey)) {
+        seenToolCalls.add(toolKey)
+        displayMessages.push({
+          id: msg.uuid || `tool-${msg.timestamp}`,
+          role: 'assistant',
+          content: '',
+          timestamp: msg.timestamp,
+          kind: 'tool_use',
+          toolName: msg.toolName,
+          toolInput: msg.toolInput,
+          toolResult: msg.toolUseResult
+        })
+      }
     }
   }
 
-  // Sort by timestamp
+  // Sort by timestamp (final check for display order)
   displayMessages.sort((a, b) =>
     new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
   )

@@ -100,18 +100,24 @@ export function normalizeSDKMessage(
     // Other system subtypes (init, etc.) are silently ignored
   }
 
-  // Handle tool progress (Anthropic SDK tool execution)
-  if (sdkMessage.type === 'tool_progress') {
+  // Handle tool use (Anthropic SDK tool execution)
+  if (sdkMessage.type === 'tool_use' || sdkMessage.type === 'tool_progress') {
+    const isPermissionRequest = sdkMessage.is_permission_request || false
+
     messages.push({
-      kind: 'tool_use',
-      id: randomUUID(),
+      kind: isPermissionRequest ? 'permission_request' : 'tool_use',
+      id: sdkMessage.uuid || randomUUID(),
       sessionId,
       timestamp,
       toolName: sdkMessage.tool_name,
-      toolInput: undefined,
+      toolId: sdkMessage.tool_use_id,
+      toolInput: sdkMessage.tool_input,
+      requestId: sdkMessage.tool_use_id, // For pairing with response
+      content: isPermissionRequest ? `Allow ${sdkMessage.tool_name}?` : '',
       metadata: {
         elapsed: sdkMessage.elapsed_time_seconds,
-        status: 'running',
+        status: sdkMessage.type === 'tool_progress' ? 'running' : 'complete',
+        toolUseId: sdkMessage.tool_use_id,
       },
     })
   }

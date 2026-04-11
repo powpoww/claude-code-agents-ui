@@ -489,40 +489,85 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
   // Determine which session ID to use for live messages
   const liveSessionId = currentSessionId.value || urlSessionId.value
 
+  let merged: DisplayChatMessage[] = []
+
   // If viewing Claude Code history
   if (viewMode.value === 'history') {
     const historyMessages = convertClaudeCodeMessages(claudeCodeMessages.value)
 
     // If we have history messages and NOT continuing, just return history
     if (historyMessages.length > 0 && !isContinuingHistory.value) {
-      return historyMessages
-    }
-
-    // Always check for live messages if we have a session ID
-    if (liveSessionId) {
-      const liveMessages = sessionStore.getMessages(liveSessionId)
-      // If we have live messages or streaming text, combine them
-      if (liveMessages.length > 0 || streamingText.value) {
-        const newMessages = convertToDisplayMessages(liveMessages, streamingText.value)
-        
-        // Dedup by ID - history messages take priority
-        const historyIds = new Set(historyMessages.map(m => m.id))
-        const uniqueNewMessages = newMessages.filter(m => !historyIds.has(m.id))
-        
-        return [...historyMessages, ...uniqueNewMessages]
+      merged = historyMessages
+    } else {
+      // Always check for live messages if we have a session ID
+      if (liveSessionId) {
+        const liveMessages = sessionStore.getMessages(liveSessionId)
+        // If we have live messages or streaming text, combine them
+        if (liveMessages.length > 0 || streamingText.value) {
+          const newMessages = convertToDisplayMessages(liveMessages, streamingText.value)
+          
+          // Dedup by ID - history messages take priority
+          const historyIds = new Set(historyMessages.map(m => m.id))
+          const uniqueNewMessages = newMessages.filter(m => !historyIds.has(m.id))
+          
+          merged = [...historyMessages, ...uniqueNewMessages]
+        } else {
+          merged = historyMessages
+        }
+      } else {
+        merged = historyMessages
       }
     }
-
-    return historyMessages
+  } else {
+    // Live session only (new chat)
+    if (!liveSessionId) {
+      merged = []
+    } else {
+      const messages = sessionStore.getMessages(liveSessionId)
+      merged = convertToDisplayMessages(messages, streamingText.value)
+    }
   }
 
-  // Live session only (new chat)
-  if (!liveSessionId) {
-    return []
+  // Final logical deduplication pass (for the whole turn/response)
+  // This catches cases where the same tool call might have different IDs between history and live store
+  const finalMessages: DisplayChatMessage[] = []
+  const seenToolCalls = new Set<string>()
+
+  for (const msg of merged) {
+    if (msg.role === 'user') {
+      seenToolCalls.clear()
+      finalMessages.push(msg)
+      continue
+    }
+
+    if (msg.kind === 'tool_use') {
+      const tn = (msg.toolName || '').toLowerCase()
+      // Normalize name
+      let normName = tn
+      if (tn === 'read_file' || tn === 'read') normName = 'read'
+      if (tn === 'write_file' || tn === 'write') normName = 'write'
+      if (tn === 'glob_search' || tn === 'glob') normName = 'glob'
+      if (tn === 'grep_search' || tn === 'grep') normName = 'grep'
+
+      // Extract target (mimicking ChatV2MessageItem)
+      let target = ''
+      const input = msg.toolInput as any
+      if (typeof input === 'string') {
+        target = input.replace(/^\.\//, '')
+      } else if (input && typeof input === 'object') {
+        const val = input.file_path || input.path || input.filePath || input.filename || input.pattern || input.file || input.command || ''
+        target = typeof val === 'string' ? val.replace(/^\.\//, '') : JSON.stringify(val)
+      }
+
+      const key = `${normName}:${target}`
+      if (seenToolCalls.has(key)) continue
+      seenToolCalls.add(key)
+    }
+    
+    finalMessages.push(msg)
   }
 
-  const messages = sessionStore.getMessages(liveSessionId)
-  return convertToDisplayMessages(messages, streamingText.value)
+  return finalMessages
 })
 
 // Watch for errors and show toast

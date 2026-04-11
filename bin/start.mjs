@@ -14,7 +14,7 @@ if (!existsSync(outputServer)) {
   execSync('npx nuxi build', { cwd: root, stdio: 'inherit' })
 }
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 3030
 process.env.PORT = String(port)
 process.env.HOST = process.env.HOST || '0.0.0.0'
 

@@ -6,16 +6,16 @@ services:
     container_name: agents-ui
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3030:3030"
     volumes:
       - ~/.claude:/root/.claude
     environment:
       - CLAUDE_DIR=/root/.claude
       - HOST=0.0.0.0
-      - PORT=3000
+      - PORT=3030
       - NODE_ENV=production
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3030/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

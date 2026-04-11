@@ -7,6 +7,62 @@ import type {
 } from '~/types'
 
 /**
+ * Check if content appears to be a system message that should be filtered
+ */
+function isSystemMessage(content: string): boolean {
+  if (!content) return false
+
+  const systemPrefixes = [
+    '<command-name>',
+    '<command-message>',
+    '<command-args>',
+    '<local-command-stdout>',
+    '<system-reminder>',
+    'Caveat:',
+    'This session is being continued from a previous',
+    'Invalid API key',
+    '[Request interrupted',
+  ]
+
+  return systemPrefixes.some(prefix => content.trim().startsWith(prefix)) ||
+    content.includes('{"subtasks":')
+}
+
+/**
+ * Normalize tool names for deduplication
+ */
+function normalizeToolName(name: string): string {
+  const n = (name || '').toLowerCase()
+  if (n === 'read_file' || n === 'read') return 'read'
+  if (n === 'write_file' || n === 'write') return 'write'
+  if (n === 'glob_search' || n === 'glob') return 'glob'
+  if (n === 'tool_search' || n === 'toolsearch') return 'toolsearch'
+  if (n === 'grep_search' || n === 'grep') return 'grep'
+  return n
+}
+
+/**
+ * Extract target from tool input (mimicking ChatV2MessageItem.vue toolFileName)
+ */
+function getToolTarget(toolInput: any): string {
+  if (!toolInput) return ''
+  let input = toolInput
+  if (typeof input === 'string') {
+    try {
+      input = JSON.parse(input)
+    } catch (e) {
+      return input.replace(/^\.\//, '')
+    }
+  }
+
+  if (typeof input === 'object') {
+    const val = input.file_path || input.path || input.filePath || input.filename || input.pattern || input.file || input.command || ''
+    return typeof val === 'string' ? val.replace(/^\.\//, '') : JSON.stringify(val)
+  }
+  return ''
+}
+
+/**
  * Convert NormalizedMessage array to DisplayChatMessage array.
  * This handles:
  * - Filtering ephemeral messages (stream_delta, stream_end)
@@ -18,12 +74,17 @@ export function convertToDisplayMessages(
   messages: NormalizedMessage[],
   streamingText?: string
 ): DisplayChatMessage[] {
+  // Sort messages by timestamp first to ensure Turn-based deduplication works correctly
+  const sortedMessages = [...messages].sort((a, b) =>
+    new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+  )
+
   const displayMessages: DisplayChatMessage[] = []
   const toolResultsMap = new Map<string, any>()
   
   // Track AskUserQuestion tool calls that have a corresponding permission_request
   const askUserPermissionRequests = new Set<string>()
-  for (const msg of messages) {
+  for (const msg of sortedMessages) {
     if (msg.kind === 'permission_request') {
       const tn = (msg.toolName || '').toLowerCase()
       if (['askuserquestion', 'ask_user', 'askuser', 'ask_user_question', 'prompt', 'input_request'].includes(tn)) {
@@ -35,7 +96,7 @@ export function convertToDisplayMessages(
   }
 
   // First pass: collect tool results by toolId
-  for (const msg of messages) {
+  for (const msg of sortedMessages) {
     if (msg.kind === 'tool_result' && msg.toolId) {
       toolResultsMap.set(msg.toolId, {
         result: msg.toolResult,
@@ -46,7 +107,17 @@ export function convertToDisplayMessages(
   }
 
   // Second pass: convert messages to display format
-  for (const msg of messages) {
+  const seenToolCalls = new Set<string>()
+
+  for (const msg of sortedMessages) {
+    // Reset seen tools for each new user message (new interaction turn)
+    if (msg.role === 'user') {
+      // Only clear if NOT a system message
+      if (!isSystemMessage(msg.content || '')) {
+        seenToolCalls.clear()
+      }
+    }
+
     // Skip ephemeral messages
     if (msg.kind === 'stream_delta' || msg.kind === 'stream_end') {
       continue
@@ -81,6 +152,18 @@ export function convertToDisplayMessages(
     // Convert to display message
     const displayMsg = convertSingleMessage(msg, toolResultsMap)
     if (displayMsg) {
+      // Deduplication: skip if this is the same tool and target as a previous one in this turn
+      if (displayMsg.kind === 'tool_use') {
+        const toolName = normalizeToolName(displayMsg.toolName || '')
+        const target = getToolTarget(displayMsg.toolInput)
+        
+        const toolKey = `${toolName}:${target}`
+        if (seenToolCalls.has(toolKey)) {
+          continue
+        }
+        seenToolCalls.add(toolKey)
+      }
+
       displayMessages.push(displayMsg)
     }
   }

@@ -10,7 +10,7 @@ agents-ui is a Nuxt 3-based visual dashboard for managing Claude Code agents, co
 
 ```bash
 # Development
-bun run dev          # Start dev server at http://localhost:3000
+bun run dev          # Start dev server at http://localhost:3030
 npm run dev          # Alternative with npm
 
 # Build & Production
