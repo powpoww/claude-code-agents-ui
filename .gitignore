@@ -21,3 +21,6 @@ logs
 # Local env files
 .env
 .claude
+
+# Superpowers brainstorming workspace (local-only)
+.superpowers/
