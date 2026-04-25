@@ -20,6 +20,12 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    server: {
+      allowedHosts: ['.localtest.me'],
+    },
+  },
+
   app: {
     head: {
       title: 'Claude Code Agent Manager',
