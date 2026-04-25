@@ -116,7 +116,6 @@ const navTop = [
   { label: 'Skills', icon: 'i-lucide-sparkles', to: '/skills' },
   { label: 'Plugins', icon: 'i-lucide-puzzle', to: '/plugins' },
   { label: 'MCP Servers', icon: 'i-lucide-server', to: '/mcp' },
-  { label: 'Output Styles', icon: 'i-lucide-palette', to: '/output-styles' },
 ]
 
 const navMid = [
