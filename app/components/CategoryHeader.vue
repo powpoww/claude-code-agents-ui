@@ -84,7 +84,7 @@ function onCategoryDragStart(ev: DragEvent) {
       @click.stop
       @keydown.enter="commitRename"
       @keydown.esc="cancelRename"
-      @blur="cancelRename"
+      @blur="commitRename"
     />
     <span v-else class="text-[13px] font-semibold flex-1 truncate" style="color: var(--text-primary);">
       {{ name }}

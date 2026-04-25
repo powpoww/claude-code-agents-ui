@@ -25,13 +25,14 @@ const emit = defineEmits<{
   (e: 'reorder-categories', orderedNames: string[]): void
 }>()
 
-const expandedCategories = useState<Set<string>>('artifacts-expanded', () => new Set())
+// Use string[] (not Set) so Nuxt's SSR payload can JSON-serialize it.
+const expandedCategories = useState<string[]>('artifacts-expanded', () => [])
 
-function isExpanded(name: string) { return expandedCategories.value.has(name) }
+function isExpanded(name: string) { return expandedCategories.value.includes(name) }
 function toggleExpand(name: string) {
-  const next = new Set(expandedCategories.value)
-  if (next.has(name)) next.delete(name); else next.add(name)
-  expandedCategories.value = next
+  expandedCategories.value = expandedCategories.value.includes(name)
+    ? expandedCategories.value.filter(n => n !== name)
+    : [...expandedCategories.value, name]
 }
 
 const sortedProjects = computed(() => {

@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 201)
     return { name: created.name }
   } catch (err: any) {
-    throw createError({ statusCode: 400, message: err.message || 'invalid' })
+    const msg = String(err.message || 'invalid')
+    const statusCode = /exists/i.test(msg) ? 409 : 400
+    throw createError({ statusCode, message: msg })
   }
 })
