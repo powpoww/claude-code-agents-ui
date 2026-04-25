@@ -4,7 +4,7 @@ import { resolveClaudePath } from '../../utils/claudeDir'
 import { slugToPath } from '../../utils/slugUtils'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const { directory, filename } = slugToPath(slug)
   const filePath = directory
     ? resolveClaudePath('commands', directory, filename)

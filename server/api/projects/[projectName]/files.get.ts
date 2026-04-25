@@ -69,7 +69,7 @@ async function getFileTree(dirPath: string, rootPath: string, maxDepth = 3, curr
 }
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'projectName')
+  const projectName = getRouterParam(event, 'projectName', { decode: true })
   if (!projectName) {
     throw createError({ statusCode: 400, message: 'Project name is required' })
   }

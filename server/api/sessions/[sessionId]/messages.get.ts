@@ -1,7 +1,7 @@
 import { detectSdkSession, loadSdkSessionMessages } from '../../../utils/sdkSessionStorage'
 
 export default defineEventHandler(async (event) => {
-  const sessionId = getRouterParam(event, 'sessionId')
+  const sessionId = getRouterParam(event, 'sessionId', { decode: true })
 
   if (!sessionId) {
     throw createError({

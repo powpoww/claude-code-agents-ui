@@ -6,7 +6,7 @@ import { decodeAgentSlug, resolveAgentFilePath } from '../../utils/agentUtils'
 import type { AgentFrontmatter } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const { workingDir } = getQuery(event) as { workingDir?: string }
 
   // Check project-local agent first when workingDir is provided

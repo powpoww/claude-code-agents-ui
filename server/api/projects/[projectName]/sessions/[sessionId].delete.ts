@@ -1,8 +1,8 @@
 import { deleteClaudeCodeSession } from '../../../../utils/claudeCodeHistory'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'projectName')
-  const sessionId = getRouterParam(event, 'sessionId')
+  const projectName = getRouterParam(event, 'projectName', { decode: true })
+  const sessionId = getRouterParam(event, 'sessionId', { decode: true })
 
   if (!projectName || !sessionId) {
     throw createError({

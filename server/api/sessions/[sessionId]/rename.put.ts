@@ -2,7 +2,7 @@ import { detectSdkSession } from '../../../utils/sdkSessionStorage'
 import { renameClaudeCodeSession } from '../../../utils/claudeCodeHistory'
 
 export default defineEventHandler(async (event) => {
-  const sessionId = getRouterParam(event, 'sessionId')
+  const sessionId = getRouterParam(event, 'sessionId', { decode: true })
   const body = await readBody(event)
   const { summary } = body
 

@@ -24,7 +24,7 @@ async function readJson<T>(path: string): Promise<T | null> {
 }
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const { workingDir } = getQuery(event) as { workingDir?: string }
 
   // Load all agents to find preloading associations

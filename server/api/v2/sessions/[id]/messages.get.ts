@@ -2,7 +2,7 @@ import { providerRegistry } from '../../../../utils/providers/registry'
 import type { ProviderFetchOptions } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const sessionId = getRouterParam(event, 'id')
+  const sessionId = getRouterParam(event, 'id', { decode: true })
 
   if (!sessionId) {
     throw createError({

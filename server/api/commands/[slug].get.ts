@@ -6,7 +6,7 @@ import { slugToPath } from '../../utils/slugUtils'
 import type { CommandFrontmatter } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const { directory, filename } = slugToPath(slug)
   const filePath = directory
     ? resolveClaudePath('commands', directory, filename)

@@ -11,7 +11,7 @@ interface ConversationSummary {
 }
 
 export default defineEventHandler(async (event): Promise<ConversationSummary[]> => {
-  const slug = getRouterParam(event, 'slug')
+  const slug = getRouterParam(event, 'slug', { decode: true })
   if (!slug) throw createError({ statusCode: 400, message: 'slug is required' })
 
   const historyDir = resolveClaudePath('agent-history', slug)

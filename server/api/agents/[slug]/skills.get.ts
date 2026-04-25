@@ -133,7 +133,7 @@ async function findSkillPath(slug: string): Promise<{ filePath: string; source: 
 }
 
 export default defineEventHandler(async (event) => {
-  const agentSlug = getRouterParam(event, 'slug')!
+  const agentSlug = getRouterParam(event, 'slug', { decode: true })!
   const agentPath = resolveClaudePath('agents', `${agentSlug}.md`)
 
   if (!existsSync(agentPath)) {

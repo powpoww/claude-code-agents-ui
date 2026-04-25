@@ -1,8 +1,8 @@
 import { getClaudeCodeSessionMessages } from '../../../../../../../utils/claudeCodeHistory'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'name')
-  const sessionId = getRouterParam(event, 'sessionId')
+  const projectName = getRouterParam(event, 'name', { decode: true })
+  const sessionId = getRouterParam(event, 'sessionId', { decode: true })
 
   if (!projectName) {
     throw createError({

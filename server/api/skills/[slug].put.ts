@@ -106,7 +106,7 @@ async function findSkillPath(slug: string): Promise<string | null> {
 }
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const skillPath = await findSkillPath(slug)
 
   if (!skillPath) {

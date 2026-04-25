@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { resolveClaudePath } from '../../utils/claudeDir'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const skillDir = resolveClaudePath('skills', slug)
 
   if (!existsSync(skillDir)) {

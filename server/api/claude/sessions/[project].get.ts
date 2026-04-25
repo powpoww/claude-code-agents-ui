@@ -1,7 +1,7 @@
 import { listSessions } from '../../../utils/claudeProjects'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'project')
+  const projectName = getRouterParam(event, 'project', { decode: true })
 
   if (!projectName) {
     throw createError({

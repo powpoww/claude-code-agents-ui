@@ -6,7 +6,7 @@ import { getClaudeCodeProjects } from '../../../utils/claudeCodeHistory'
 import type { Agent, Skill, AgentFrontmatter, SkillFrontmatter } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'projectName')
+  const projectName = getRouterParam(event, 'projectName', { decode: true })
   if (!projectName) {
     throw createError({ statusCode: 400, message: 'Missing projectName' })
   }

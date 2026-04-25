@@ -5,7 +5,7 @@ import { loadSessionMessages } from '../../../../utils/chatSessionStorage'
  * Fetch messages for a session with pagination
  */
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
+  const id = getRouterParam(event, 'id', { decode: true })
 
   if (!id) {
     throw createError({

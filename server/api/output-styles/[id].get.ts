@@ -6,7 +6,7 @@ import { DEFAULT_OUTPUT_STYLES } from '../../utils/defaultOutputStyles'
 import { resolveHome } from '../../utils/path'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
+  const id = getRouterParam(event, 'id', { decode: true })
   const query = getQuery(event)
   const scope = query.scope as string
   const workingDir = query.workingDir as string

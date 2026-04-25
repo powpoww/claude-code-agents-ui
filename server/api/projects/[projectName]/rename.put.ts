@@ -1,7 +1,7 @@
 import { renameClaudeCodeProject } from '../../../utils/claudeCodeHistory'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'projectName')
+  const projectName = getRouterParam(event, 'projectName', { decode: true })
   const body = await readBody(event)
   const newDisplayName = body.displayName
 

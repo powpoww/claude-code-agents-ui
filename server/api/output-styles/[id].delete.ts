@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { getClaudeDir } from '../../utils/claudeDir'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
+  const id = getRouterParam(event, 'id', { decode: true })
   const query = getQuery(event)
   const scope = query.scope as string
   const workingDir = query.workingDir as string

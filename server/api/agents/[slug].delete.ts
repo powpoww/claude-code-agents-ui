@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { resolveAgentFilePath } from '../../utils/agentUtils'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const filePath = resolveAgentFilePath(slug)
 
   if (!existsSync(filePath)) {

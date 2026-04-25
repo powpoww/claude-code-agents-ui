@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { getMcpCapabilities } from '../../../utils/mcpClient'
 
 export default defineEventHandler(async (event) => {
-  const name = getRouterParam(event, 'name')
+  const name = getRouterParam(event, 'name', { decode: true })
   const { scope, workingDir } = getQuery(event)
 
   if (!name) {

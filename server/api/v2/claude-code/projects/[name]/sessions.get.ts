@@ -1,7 +1,7 @@
 import { getClaudeCodeSessions } from '../../../../../utils/claudeCodeHistory'
 
 export default defineEventHandler(async (event) => {
-  const projectName = getRouterParam(event, 'name')
+  const projectName = getRouterParam(event, 'name', { decode: true })
 
   if (!projectName) {
     throw createError({

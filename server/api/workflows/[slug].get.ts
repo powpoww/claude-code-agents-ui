@@ -4,7 +4,7 @@ import { resolveClaudePath } from '../../utils/claudeDir'
 import type { Workflow } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')
+  const slug = getRouterParam(event, 'slug', { decode: true })
   const filePath = resolveClaudePath('workflows', `${slug}.json`)
 
   if (!existsSync(filePath)) {

@@ -6,7 +6,7 @@ import { getPreloadingAgents, getMcpServerForSkill } from '../../utils/skillRela
 import type { SkillFrontmatter } from '~/types'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
+  const slug = getRouterParam(event, 'slug', { decode: true })!
   const body = await readBody<{ filePath: string }>(event)
   const { workingDir } = getQuery(event) as { workingDir?: string }
 
