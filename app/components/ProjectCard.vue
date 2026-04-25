@@ -7,11 +7,22 @@ interface ClaudeCodeProject {
   displayName: string
   lastActivity?: string
   sessionCount: number
+  hidden?: boolean
 }
 
-defineProps<{
+const props = defineProps<{
   project: ClaudeCodeProject
 }>()
+
+const emit = defineEmits<{
+  (e: 'toggle-hidden', project: ClaudeCodeProject): void
+}>()
+
+function onToggleHidden(ev: Event) {
+  ev.preventDefault()
+  ev.stopPropagation()
+  emit('toggle-hidden', props.project)
+}
 </script>
 
 <template>
@@ -49,6 +60,14 @@ defineProps<{
           {{ project.path }}
         </div>
       </div>
+      <button
+        class="size-7 rounded-lg flex items-center justify-center shrink-0 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover-bg"
+        :title="project.hidden ? 'Show in list' : 'Hide from list'"
+        style="color: var(--text-secondary);"
+        @click="onToggleHidden"
+      >
+        <UIcon :name="project.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="size-4" />
+      </button>
     </div>
     
     <div class="flex items-center justify-between mt-4 pt-3 relative" style="border-top: 1px solid var(--border-subtle);">

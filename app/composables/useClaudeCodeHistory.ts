@@ -8,6 +8,7 @@ interface ClaudeCodeProject {
   displayName: string
   lastActivity?: string
   sessionCount: number
+  hidden?: boolean
 }
 
 interface ClaudeCodeSession {
@@ -95,6 +96,24 @@ export function useClaudeCodeHistory() {
       return true
     } catch (error) {
       console.error('Failed to rename project:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Toggle hidden flag for a project (UI-only filter; transcripts kept on disk)
+   */
+  async function setProjectHidden(projectName: string, hidden: boolean) {
+    try {
+      await $fetch(`/api/projects/${encodeURIComponent(projectName)}/hide`, {
+        method: 'PUT',
+        body: { hidden }
+      })
+      const project = projects.value.find(p => p.name === projectName)
+      if (project) project.hidden = hidden
+      return true
+    } catch (error) {
+      console.error('Failed to toggle hidden flag:', error)
       throw error
     }
   }
@@ -392,6 +411,7 @@ export function useClaudeCodeHistory() {
     silentSyncMessages,
     renameProject,
     deleteProject,
+    setProjectHidden,
     renameSession,
     deleteSession,
     selectProject,

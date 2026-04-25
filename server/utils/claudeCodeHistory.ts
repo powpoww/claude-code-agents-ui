@@ -16,6 +16,7 @@ export interface ClaudeCodeProject {
   displayName: string
   lastActivity?: string
   sessionCount: number
+  hidden?: boolean
 }
 
 export interface ClaudeCodeSession {
@@ -109,6 +110,32 @@ async function loadProjectNames(): Promise<ProjectNames> {
 async function saveProjectNames(names: ProjectNames): Promise<void> {
   const filePath = join(getClaudeDir(), 'custom-project-names.json')
   await fs.writeFile(filePath, JSON.stringify(names, null, 2), 'utf8')
+}
+
+/**
+ * Hidden project list (UI-only filter; transcripts on disk are untouched)
+ */
+async function loadHiddenProjects(): Promise<Set<string>> {
+  const filePath = join(getClaudeDir(), 'hidden-projects.json')
+  try {
+    const data = await fs.readFile(filePath, 'utf8')
+    const arr = JSON.parse(data) as string[]
+    return new Set(Array.isArray(arr) ? arr : [])
+  } catch {
+    return new Set()
+  }
+}
+
+async function saveHiddenProjects(hidden: Set<string>): Promise<void> {
+  const filePath = join(getClaudeDir(), 'hidden-projects.json')
+  await fs.writeFile(filePath, JSON.stringify([...hidden], null, 2), 'utf8')
+}
+
+export async function setProjectHidden(projectName: string, hidden: boolean): Promise<void> {
+  const set = await loadHiddenProjects()
+  if (hidden) set.add(projectName)
+  else set.delete(projectName)
+  await saveHiddenProjects(set)
 }
 
 /**
@@ -391,6 +418,12 @@ export async function getClaudeCodeProjects(): Promise<ClaudeCodeProject[]> {
       if (!projects.some(p => p.name === name)) {
         projects.push({ name, path: meta.path, displayName: meta.displayName, sessionCount: 0 })
       }
+    }
+
+    // Mark hidden projects (UI filters on this flag; transcripts stay on disk)
+    const hidden = await loadHiddenProjects()
+    for (const project of projects) {
+      if (hidden.has(project.name)) project.hidden = true
     }
 
     // Sort by last activity (newest first)

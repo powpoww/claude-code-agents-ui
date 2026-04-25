@@ -2,7 +2,7 @@
 import { useClaudeCodeHistory } from '~/composables/useClaudeCodeHistory'
 
 const history = useClaudeCodeHistory()
-const { projects, isLoadingProjects, fetchProjects } = history
+const { projects, isLoadingProjects, fetchProjects, setProjectHidden } = history
 const toast = useToast()
 
 const showAddModal = ref(false)
@@ -10,6 +10,22 @@ const newPath = ref('')
 const newDisplayName = ref('')
 const adding = ref(false)
 const browsing = ref(false)
+const showHidden = ref(false)
+
+const hiddenCount = computed(() => projects.value.filter(p => p.hidden).length)
+const visibleProjects = computed(() =>
+  showHidden.value ? projects.value : projects.value.filter(p => !p.hidden)
+)
+
+async function onToggleHidden(project: { name: string; hidden?: boolean }) {
+  const next = !project.hidden
+  try {
+    await setProjectHidden(project.name, next)
+    toast.add({ title: next ? 'Hidden from list' : 'Restored to list', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: err.data?.message || 'Failed to update', color: 'error' })
+  }
+}
 
 async function browseFolder() {
   browsing.value = true
@@ -61,11 +77,21 @@ useHead({
     <PageHeader title="Project Artifacts">
       <template #trailing>
         <span class="text-[12px] text-meta">
-          {{ projects.length }}
+          {{ visibleProjects.length }}<span v-if="hiddenCount" class="ml-1 text-[11px]">(+{{ hiddenCount }} hidden)</span>
         </span>
       </template>
       <template #right>
         <div class="flex items-center gap-3">
+          <button
+            v-if="hiddenCount > 0"
+            class="px-3 py-2 rounded-xl text-[12px] font-medium transition-all flex items-center gap-1.5 hover-bg"
+            style="border: 1px solid var(--border-subtle); color: var(--text-secondary);"
+            :title="showHidden ? 'Hide hidden projects' : 'Show hidden projects'"
+            @click="showHidden = !showHidden"
+          >
+            <UIcon :name="showHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="size-3.5" />
+            {{ showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})` }}
+          </button>
           <button
             class="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all flex items-center gap-2"
             style="background: var(--accent); color: white;"
@@ -83,11 +109,12 @@ useHead({
         <div v-for="i in 8" :key="i" class="h-[140px] rounded-xl animate-pulse" style="background: var(--surface-raised);" />
       </div>
 
-      <div v-else-if="projects.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div v-else-if="visibleProjects.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <ProjectCard
-          v-for="project in projects"
+          v-for="project in visibleProjects"
           :key="project.name"
           :project="project"
+          @toggle-hidden="onToggleHidden"
         />
       </div>
 
