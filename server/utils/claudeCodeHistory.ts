@@ -160,7 +160,7 @@ export async function loadProjectCategories(): Promise<ProjectCategoryStore> {
           : {},
     }
   } catch {
-    return { ...EMPTY_STORE, categories: [], assignments: {} }
+    return { categories: [], assignments: {} }
   }
 }
 
@@ -535,23 +535,21 @@ export async function getClaudeCodeProjects(): Promise<ClaudeCodeProject[]> {
 
     await applyCustomProjectNames(projects)
 
-    // Merge manually added projects
-    const manualProjects = await loadManualProjects()
+    // Read manual/hidden/category stores in parallel — independent files.
+    const [manualProjects, hidden, { assignments }] = await Promise.all([
+      loadManualProjects(),
+      loadHiddenProjects(),
+      loadProjectCategories(),
+    ])
+
     for (const [name, meta] of Object.entries(manualProjects)) {
       if (!projects.some(p => p.name === name)) {
         projects.push({ name, path: meta.path, displayName: meta.displayName, sessionCount: 0 })
       }
     }
 
-    // Mark hidden projects (UI filters on this flag; transcripts stay on disk)
-    const hidden = await loadHiddenProjects()
     for (const project of projects) {
       if (hidden.has(project.name)) project.hidden = true
-    }
-
-    // Attach category assignment (새 블록)
-    const { assignments } = await loadProjectCategories()
-    for (const project of projects) {
       const cat = assignments[project.name]
       if (cat) project.category = cat
     }

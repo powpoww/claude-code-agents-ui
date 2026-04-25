@@ -58,61 +58,65 @@ async function addProject() {
   }
 }
 
+async function withToast<T>(
+  action: () => Promise<T>,
+  opts: { success?: string; errorFallback: string },
+): Promise<T | undefined> {
+  try {
+    const result = await action()
+    if (opts.success) toast.add({ title: opts.success, color: 'success' })
+    return result
+  } catch (err: any) {
+    toast.add({ title: err?.data?.message || opts.errorFallback, color: 'error' })
+    return undefined
+  }
+}
+
 async function onToggleHidden(project: { name: string; hidden?: boolean }) {
   const next = !project.hidden
-  try {
-    await setProjectHidden(project.name, next)
-    toast.add({ title: next ? 'Hidden from list' : 'Restored to list', color: 'success' })
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to update', color: 'error' })
-  }
+  await withToast(() => setProjectHidden(project.name, next), {
+    success: next ? 'Hidden from list' : 'Restored to list',
+    errorFallback: 'Failed to update',
+  })
 }
 
 async function commitNewCategory() {
   const name = newCategoryName.value.trim()
   if (!name) { isAddingCategory.value = false; return }
-  try {
-    await createCategory(name)
+  const ok = await withToast(() => createCategory(name), {
+    success: 'Category created',
+    errorFallback: 'Failed to create',
+  })
+  if (ok !== undefined) {
     newCategoryName.value = ''
     isAddingCategory.value = false
-    toast.add({ title: 'Category created', color: 'success' })
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to create', color: 'error' })
   }
 }
 
 async function onRenameCategory(oldName: string, newName: string) {
-  try {
-    await renameCategory(oldName, newName)
-    toast.add({ title: 'Renamed', color: 'success' })
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to rename', color: 'error' })
-  }
+  await withToast(() => renameCategory(oldName, newName), {
+    success: 'Renamed',
+    errorFallback: 'Failed to rename',
+  })
 }
 
 async function onDeleteCategory(name: string) {
-  try {
-    await deleteCategory(name)
-    toast.add({ title: 'Category deleted', color: 'success' })
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to delete', color: 'error' })
-  }
+  await withToast(() => deleteCategory(name), {
+    success: 'Category deleted',
+    errorFallback: 'Failed to delete',
+  })
 }
 
 async function onAssignProject(projectName: string, category: string | null) {
-  try {
-    await setProjectCategory(projectName, category)
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to assign', color: 'error' })
-  }
+  await withToast(() => setProjectCategory(projectName, category), {
+    errorFallback: 'Failed to assign',
+  })
 }
 
 async function onReorderCategories(orderedNames: string[]) {
-  try {
-    await reorderCategories(orderedNames)
-  } catch (err: any) {
-    toast.add({ title: err.data?.message || 'Failed to reorder', color: 'error' })
-  }
+  await withToast(() => reorderCategories(orderedNames), {
+    errorFallback: 'Failed to reorder',
+  })
 }
 
 onMounted(async () => {

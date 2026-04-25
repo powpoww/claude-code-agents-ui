@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { DND_PROJECT, DND_CATEGORY } from '~/utils/dnd'
+
 const props = defineProps<{
   name: string
   projectCount: number
@@ -50,15 +52,19 @@ function onDragLeave() { isDragOver.value = false }
 function onDrop(ev: DragEvent) {
   ev.preventDefault()
   isDragOver.value = false
-  const projectName = ev.dataTransfer?.getData('application/x-project')
-  if (projectName) emit('drop-project', projectName)
-  const reorderName = ev.dataTransfer?.getData('application/x-category')
+  const projectName = ev.dataTransfer?.getData(DND_PROJECT)
+  if (projectName) {
+    emit('drop-project', projectName)
+    return
+  }
+  const reorderName = ev.dataTransfer?.getData(DND_CATEGORY)
   if (reorderName) emit('drop-reorder', reorderName)
 }
 
 function onCategoryDragStart(ev: DragEvent) {
-  ev.dataTransfer?.setData('application/x-category', props.name)
-  ev.dataTransfer!.effectAllowed = 'move'
+  if (!ev.dataTransfer) return
+  ev.dataTransfer.setData(DND_CATEGORY, props.name)
+  ev.dataTransfer.effectAllowed = 'move'
 }
 </script>
 

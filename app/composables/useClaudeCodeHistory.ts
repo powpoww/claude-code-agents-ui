@@ -135,38 +135,63 @@ export function useClaudeCodeHistory() {
     }
   }
 
+  // After any successful mutation we know the new shape locally, so update
+  // categories/projects in place instead of round-tripping a GET.
   async function createCategory(name: string) {
     await $fetch('/api/project-categories', { method: 'POST', body: { name } })
-    await fetchCategories()
+    if (!categories.value.some(c => c.name === name)) {
+      categories.value = [...categories.value, { name, projectCount: 0 }]
+    }
   }
 
   async function renameCategory(oldName: string, newName: string) {
     await $fetch(`/api/project-categories/${encodeURIComponent(oldName)}`, {
       method: 'PUT', body: { name: newName },
     })
-    await fetchCategories()
-    for (const p of projects.value) if (p.category === oldName) p.category = newName
+    categories.value = categories.value.map(c =>
+      c.name === oldName ? { ...c, name: newName } : c,
+    )
+    projects.value = projects.value.map(p =>
+      p.category === oldName ? { ...p, category: newName } : p,
+    )
   }
 
   async function deleteCategory(name: string) {
+    // Type-widen the URL: Nuxt's typed $fetch can't merge PUT and DELETE
+    // handlers under [name].$method.ts, so it narrows away DELETE.
     const url: string = `/api/project-categories/${encodeURIComponent(name)}`
     await $fetch(url, { method: 'DELETE' })
-    await fetchCategories()
-    for (const p of projects.value) if (p.category === name) p.category = undefined
+    categories.value = categories.value.filter(c => c.name !== name)
+    projects.value = projects.value.map(p =>
+      p.category === name ? { ...p, category: undefined } : p,
+    )
   }
 
   async function reorderCategories(orderedNames: string[]) {
     await $fetch('/api/project-categories/order', { method: 'PUT', body: { names: orderedNames } })
-    await fetchCategories()
+    const byName = new Map(categories.value.map(c => [c.name, c]))
+    categories.value = orderedNames.flatMap(n => {
+      const cat = byName.get(n)
+      return cat ? [cat] : []
+    })
   }
 
   async function setProjectCategory(projectName: string, category: string | null) {
     await $fetch(`/api/projects/${encodeURIComponent(projectName)}/category`, {
       method: 'PUT', body: { category },
     })
-    const p = projects.value.find(x => x.name === projectName)
-    if (p) p.category = category ?? undefined
-    await fetchCategories()
+    const previous = projects.value.find(p => p.name === projectName)?.category
+    projects.value = projects.value.map(p =>
+      p.name === projectName ? { ...p, category: category ?? undefined } : p,
+    )
+    // Adjust counts inline; preserves UI ordering without a refetch.
+    if (previous !== (category ?? undefined)) {
+      categories.value = categories.value.map(c => {
+        if (c.name === previous) return { ...c, projectCount: Math.max(0, c.projectCount - 1) }
+        if (c.name === category) return { ...c, projectCount: c.projectCount + 1 }
+        return c
+      })
+    }
   }
 
   /**

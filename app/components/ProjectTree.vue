@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { DND_PROJECT } from '~/utils/dnd'
+
 interface ClaudeCodeProject {
   name: string
   path: string
@@ -28,12 +30,26 @@ const emit = defineEmits<{
 // Use string[] (not Set) so Nuxt's SSR payload can JSON-serialize it.
 const expandedCategories = useState<string[]>('artifacts-expanded', () => [])
 
-function isExpanded(name: string) { return expandedCategories.value.includes(name) }
+const expandedSet = computed(() => new Set(expandedCategories.value))
+function isExpanded(name: string) { return expandedSet.value.has(name) }
 function toggleExpand(name: string) {
-  expandedCategories.value = expandedCategories.value.includes(name)
+  expandedCategories.value = expandedSet.value.has(name)
     ? expandedCategories.value.filter(n => n !== name)
     : [...expandedCategories.value, name]
 }
+
+// Drop stale entries when categories disappear (rename / delete / fetch).
+watch(
+  () => props.categories.map(c => c.name),
+  (names) => {
+    const live = new Set(names)
+    const filtered = expandedCategories.value.filter(n => live.has(n))
+    if (filtered.length !== expandedCategories.value.length) {
+      expandedCategories.value = filtered
+    }
+  },
+  { flush: 'post' },
+)
 
 const sortedProjects = computed(() => {
   const list = props.showHidden ? props.projects : props.projects.filter(p => !p.hidden)
@@ -44,17 +60,35 @@ const sortedProjects = computed(() => {
   })
 })
 
+// Pre-bucket projects per category once; turns N×C scans into O(1) lookups.
+const projectsByCategory = computed(() => {
+  const map = new Map<string, ClaudeCodeProject[]>()
+  for (const p of sortedProjects.value) {
+    if (!p.category) continue
+    const list = map.get(p.category)
+    if (list) list.push(p); else map.set(p.category, [p])
+  }
+  return map
+})
+const hiddenCountByCategory = computed(() => {
+  const map = new Map<string, number>()
+  for (const p of props.projects) {
+    if (p.hidden && p.category) map.set(p.category, (map.get(p.category) ?? 0) + 1)
+  }
+  return map
+})
+
 const standalone = computed(() => sortedProjects.value.filter(p => !p.category))
 function projectsIn(catName: string) {
-  return sortedProjects.value.filter(p => p.category === catName)
+  return projectsByCategory.value.get(catName) ?? []
 }
 function hiddenCountIn(catName: string): number {
-  return props.projects.filter(p => p.category === catName && p.hidden).length
+  return hiddenCountByCategory.value.get(catName) ?? 0
 }
 
 const isRootDragOver = ref(false)
 function onRootDragOver(ev: DragEvent) {
-  if (!ev.dataTransfer?.types.includes('application/x-project')) return
+  if (!ev.dataTransfer?.types.includes(DND_PROJECT)) return
   ev.preventDefault()
   isRootDragOver.value = true
   ev.dataTransfer.dropEffect = 'move'
@@ -63,7 +97,7 @@ function onRootDragLeave() { isRootDragOver.value = false }
 function onRootDrop(ev: DragEvent) {
   ev.preventDefault()
   isRootDragOver.value = false
-  const projectName = ev.dataTransfer?.getData('application/x-project')
+  const projectName = ev.dataTransfer?.getData(DND_PROJECT)
   if (projectName) emit('assign-project', projectName, null)
 }
 
@@ -116,7 +150,7 @@ async function confirmDelete(name: string) {
         @drop-project="(p: string) => emit('assign-project', p, cat.name)"
         @drop-reorder="(d: string) => onCategoryReorder(cat.name, d)"
       />
-      <div v-if="isExpanded(cat.name)">
+      <template v-if="isExpanded(cat.name)">
         <ProjectTreeRow
           v-for="p in projectsIn(cat.name)"
           :key="p.name"
@@ -131,7 +165,7 @@ async function confirmDelete(name: string) {
         >
           Drop projects here
         </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>

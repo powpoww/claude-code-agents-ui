@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatRelativeTime } from '~/utils/messageFormatting'
+import { DND_PROJECT } from '~/utils/dnd'
 
 interface ClaudeCodeProject {
   name: string
@@ -21,8 +22,9 @@ const emit = defineEmits<{
 }>()
 
 function onDragStart(ev: DragEvent) {
-  ev.dataTransfer?.setData('application/x-project', props.project.name)
-  ev.dataTransfer!.effectAllowed = 'move'
+  if (!ev.dataTransfer) return
+  ev.dataTransfer.setData(DND_PROJECT, props.project.name)
+  ev.dataTransfer.effectAllowed = 'move'
 }
 
 function onToggleHidden(ev: Event) {
