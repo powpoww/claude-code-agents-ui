@@ -9,6 +9,12 @@ interface ClaudeCodeProject {
   lastActivity?: string
   sessionCount: number
   hidden?: boolean
+  category?: string
+}
+
+interface ProjectCategorySummary {
+  name: string
+  projectCount: number
 }
 
 interface ClaudeCodeSession {
@@ -42,6 +48,7 @@ interface ClaudeCodeMessage {
 
 export function useClaudeCodeHistory() {
   const projects = useState<ClaudeCodeProject[]>('claude-code-projects', () => [])
+  const categories = useState<ProjectCategorySummary[]>('project-categories', () => [])
   const sessions = useState<ClaudeCodeSession[]>('claude-code-sessions', () => [])
   const messages = useState<ClaudeCodeMessage[]>('claude-code-messages', () => [])
 
@@ -116,6 +123,50 @@ export function useClaudeCodeHistory() {
       console.error('Failed to toggle hidden flag:', error)
       throw error
     }
+  }
+
+  async function fetchCategories() {
+    try {
+      const data = await $fetch<{ categories: ProjectCategorySummary[] }>('/api/project-categories')
+      categories.value = data.categories
+    } catch (error) {
+      console.error('Failed to fetch project categories:', error)
+      categories.value = []
+    }
+  }
+
+  async function createCategory(name: string) {
+    await $fetch('/api/project-categories', { method: 'POST', body: { name } })
+    await fetchCategories()
+  }
+
+  async function renameCategory(oldName: string, newName: string) {
+    await $fetch(`/api/project-categories/${encodeURIComponent(oldName)}`, {
+      method: 'PUT', body: { name: newName },
+    })
+    await fetchCategories()
+    for (const p of projects.value) if (p.category === oldName) p.category = newName
+  }
+
+  async function deleteCategory(name: string) {
+    const url: string = `/api/project-categories/${encodeURIComponent(name)}`
+    await $fetch(url, { method: 'DELETE' })
+    await fetchCategories()
+    for (const p of projects.value) if (p.category === name) p.category = undefined
+  }
+
+  async function reorderCategories(orderedNames: string[]) {
+    await $fetch('/api/project-categories/order', { method: 'PUT', body: { names: orderedNames } })
+    await fetchCategories()
+  }
+
+  async function setProjectCategory(projectName: string, category: string | null) {
+    await $fetch(`/api/projects/${encodeURIComponent(projectName)}/category`, {
+      method: 'PUT', body: { category },
+    })
+    const p = projects.value.find(x => x.name === projectName)
+    if (p) p.category = category ?? undefined
+    await fetchCategories()
   }
 
   /**
@@ -392,6 +443,7 @@ export function useClaudeCodeHistory() {
   return {
     // State
     projects,
+    categories,
     sessions,
     messages,
     selectedProject,
@@ -412,6 +464,12 @@ export function useClaudeCodeHistory() {
     renameProject,
     deleteProject,
     setProjectHidden,
+    fetchCategories,
+    createCategory,
+    renameCategory,
+    deleteCategory,
+    reorderCategories,
+    setProjectCategory,
     renameSession,
     deleteSession,
     selectProject,

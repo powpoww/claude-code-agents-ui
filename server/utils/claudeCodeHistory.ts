@@ -6,7 +6,6 @@
 import { promises as fs, createReadStream } from 'fs'
 import { createInterface } from 'readline'
 import { join } from 'path'
-import { homedir } from 'os'
 
 import { getClaudeDir } from './claudeDir'
 
@@ -17,6 +16,7 @@ export interface ClaudeCodeProject {
   lastActivity?: string
   sessionCount: number
   hidden?: boolean
+  category?: string
 }
 
 export interface ClaudeCodeSession {
@@ -129,6 +129,129 @@ async function loadHiddenProjects(): Promise<Set<string>> {
 async function saveHiddenProjects(hidden: Set<string>): Promise<void> {
   const filePath = join(getClaudeDir(), 'hidden-projects.json')
   await fs.writeFile(filePath, JSON.stringify([...hidden], null, 2), 'utf8')
+}
+
+/**
+ * Project category store (UI-only grouping; transcripts on disk untouched)
+ */
+export interface ProjectCategory {
+  name: string
+}
+
+export interface ProjectCategoryStore {
+  categories: ProjectCategory[]
+  assignments: Record<string, string>
+}
+
+const EMPTY_STORE: ProjectCategoryStore = { categories: [], assignments: {} }
+
+export async function loadProjectCategories(): Promise<ProjectCategoryStore> {
+  const filePath = join(getClaudeDir(), 'project-categories.json')
+  try {
+    const data = await fs.readFile(filePath, 'utf8')
+    const parsed = JSON.parse(data) as Partial<ProjectCategoryStore>
+    return {
+      categories: Array.isArray(parsed.categories) ? parsed.categories.filter(c => c && typeof c.name === 'string') : [],
+      assignments:
+        parsed.assignments != null &&
+        typeof parsed.assignments === 'object' &&
+        !Array.isArray(parsed.assignments)
+          ? { ...parsed.assignments }
+          : {},
+    }
+  } catch {
+    return { ...EMPTY_STORE, categories: [], assignments: {} }
+  }
+}
+
+export async function saveProjectCategories(store: ProjectCategoryStore): Promise<void> {
+  const filePath = join(getClaudeDir(), 'project-categories.json')
+  await fs.writeFile(filePath, JSON.stringify(store, null, 2), 'utf8')
+}
+
+const RESERVED_CATEGORY_NAMES = new Set(['order'])
+const MAX_CATEGORY_NAME_LEN = 50
+
+function normalizeCategoryName(name: string): string {
+  return name.trim()
+}
+
+function validateNewCategoryName(name: string, existing: ProjectCategory[]): string {
+  const trimmed = normalizeCategoryName(name)
+  if (!trimmed) throw new Error('Category name cannot be empty')
+  if (trimmed.length > MAX_CATEGORY_NAME_LEN) throw new Error(`Category name exceeds ${MAX_CATEGORY_NAME_LEN} chars`)
+  if (RESERVED_CATEGORY_NAMES.has(trimmed)) throw new Error(`"${trimmed}" is a reserved name`)
+  if (existing.some(c => c.name === trimmed)) throw new Error(`Category "${trimmed}" already exists`)
+  return trimmed
+}
+
+export async function createProjectCategory(name: string): Promise<ProjectCategory> {
+  const store = await loadProjectCategories()
+  const trimmed = validateNewCategoryName(name, store.categories)
+  const category: ProjectCategory = { name: trimmed }
+  store.categories.push(category)
+  await saveProjectCategories(store)
+  return category
+}
+
+export async function renameProjectCategory(oldName: string, newName: string): Promise<ProjectCategory> {
+  const store = await loadProjectCategories()
+  const idx = store.categories.findIndex(c => c.name === oldName)
+  if (idx < 0) throw new Error(`Category "${oldName}" not found`)
+  const trimmed = normalizeCategoryName(newName)
+  if (trimmed === oldName) return store.categories[idx]!
+  const others = store.categories.filter((_, i) => i !== idx)
+  const validated = validateNewCategoryName(trimmed, others)
+  store.categories[idx] = { ...store.categories[idx]!, name: validated }
+  for (const [proj, cat] of Object.entries(store.assignments)) {
+    if (cat === oldName) store.assignments[proj] = validated
+  }
+  await saveProjectCategories(store)
+  return store.categories[idx]!
+}
+
+export async function deleteProjectCategory(name: string): Promise<{ orphanedCount: number }> {
+  const store = await loadProjectCategories()
+  const idx = store.categories.findIndex(c => c.name === name)
+  if (idx < 0) throw new Error(`Category "${name}" not found`)
+  store.categories.splice(idx, 1)
+  let orphanedCount = 0
+  for (const [proj, cat] of Object.entries(store.assignments)) {
+    if (cat === name) {
+      delete store.assignments[proj]
+      orphanedCount++
+    }
+  }
+  await saveProjectCategories(store)
+  return { orphanedCount }
+}
+
+export async function reorderProjectCategories(orderedNames: string[]): Promise<void> {
+  const store = await loadProjectCategories()
+  const currentNames = new Set(store.categories.map(c => c.name))
+  const givenNames = new Set(orderedNames)
+  if (currentNames.size !== givenNames.size || [...currentNames].some(n => !givenNames.has(n))) {
+    throw new Error('Order set mismatch — names array must equal current categories exactly')
+  }
+  const byName = new Map(store.categories.map(c => [c.name, c]))
+  store.categories = orderedNames.map(n => byName.get(n)!)
+  await saveProjectCategories(store)
+}
+
+export async function setProjectCategoryAssignment(projectName: string, category: string | null): Promise<void> {
+  const store = await loadProjectCategories()
+  if (category === null) {
+    if (store.assignments[projectName] !== undefined) {
+      delete store.assignments[projectName]
+      await saveProjectCategories(store)
+    }
+    return
+  }
+  if (!store.categories.some(c => c.name === category)) {
+    throw new Error(`Category "${category}" not found`)
+  }
+  store.assignments[projectName] = category
+  await saveProjectCategories(store)
 }
 
 export async function setProjectHidden(projectName: string, hidden: boolean): Promise<void> {
@@ -249,7 +372,7 @@ async function applyCustomProjectNames(projects: ClaudeCodeProject[]): Promise<v
  * Get the Claude projects directory path
  */
 function getClaudeProjectsDir(): string {
-  return join(homedir(), '.claude', 'projects')
+  return join(getClaudeDir(), 'projects')
 }
 
 /**
@@ -424,6 +547,13 @@ export async function getClaudeCodeProjects(): Promise<ClaudeCodeProject[]> {
     const hidden = await loadHiddenProjects()
     for (const project of projects) {
       if (hidden.has(project.name)) project.hidden = true
+    }
+
+    // Attach category assignment (새 블록)
+    const { assignments } = await loadProjectCategories()
+    for (const project of projects) {
+      const cat = assignments[project.name]
+      if (cat) project.category = cat
     }
 
     // Sort by last activity (newest first)
